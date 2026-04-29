@@ -156,7 +156,7 @@ WHERE/JOIN nhiều lần. Kiểm tra xem có index chưa (qua SSMS hoặc
 2. Hoặc chạy thủ công `CREATE NONCLUSTERED INDEX ... WITH (ONLINE = ON)` qua
    SSMS rồi scaffold migration sau.
 
-## 10. EF perf — benchmark trước khi merge cho 2 hotpath
+## 10. EF perf — benchmark trước khi merge cho 2 hotpath ✅ HARNESS DELIVERED
 
 Hai chỗ đáng benchmark trước khi merge `refactor/ef-query-optimization`:
 
@@ -177,6 +177,26 @@ Hai chỗ đáng benchmark trước khi merge `refactor/ef-query-optimization`:
 Test framework: `BenchmarkDotNet` hoặc đơn giản hơn — `Stopwatch` + `dotnet test`
 với fixture chứa SQL Server seeded data. Nếu không tiện cài Bench, có thể chạy
 SSMS với `SET STATISTICS TIME, IO ON` cho 2 query thô và so sánh.
+
+**Harness đã ship trong branch `test/perf-benchmarks` (2026-04-29):**
+
+- `BackEndAPI.Tests/Performance/SyncToSapPriceLookupBench.cs`
+- `BackEndAPI.Tests/Performance/ApprovalLookupBench.cs`
+- `BackEndAPI.Tests/Performance/BenchmarkBase.cs` (helper Stopwatch + DbContext factory)
+- `BackEndAPI.Tests/Performance/README.md` (cách chạy + caveats)
+
+Cả 2 test mặc định `[Fact(Skip = ...)]` để CI không chạy. Khi muốn benchmark:
+
+1. Provision SQL Server với migration applied (lệnh trong README).
+2. (Khuyến cáo) restore từ UAT backup để có `Item ~50k`, `WTM2 ~1k`,
+   `OWTM/RUsers` populated — gap mới rõ.
+3. Set env var `APSP_BENCH_CONN`.
+4. Bỏ `Skip = ...` trên `[Fact]` (xUnit không hỗ trợ runtime-skip ở 2.x).
+5. `dotnet test backend/BackEndAPI.Tests --filter "FullyQualifiedName~Performance"`.
+
+Mỗi test chạy BEFORE và AFTER pattern in-line trên cùng dataset, lặp 5 lần,
+lấy median, in ra ITestOutputHelper, assert AFTER không chậm hơn BEFORE +
+yêu cầu ratio ≥ 2x khi dataset đủ lớn.
 
 ## 11. Async — sync EF call (`FirstOrDefault`, `ToList`...) trong method async (was #7)
 
