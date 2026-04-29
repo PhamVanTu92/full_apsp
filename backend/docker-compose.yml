@@ -1,0 +1,43 @@
+# Docker Compose cho dev local — KHÔNG dùng cho production.
+# Production deploy qua K8s/ECS với image build từ Dockerfile.
+#
+# Cách chạy:
+#   docker compose up --build           # build + start
+#   docker compose up -d                # start ở background
+#   docker compose logs -f api          # tail logs
+#   docker compose down                 # stop + remove containers
+#
+# Trước khi chạy: tạo file .env (copy từ .env.example) và set các giá trị
+# secret thật. .env phải nằm trong .gitignore (đã có).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: BackEndAPI/Dockerfile
+    image: apsp/backend:dev
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      # Secrets — nạp từ file .env (xem .env.example)
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
+      Jwt__Key: ${Jwt__Key}
+      Jwt__Issuer: ${Jwt__Issuer:-https://localhost}
+      Jwt__Audience: ${Jwt__Audience:-http://localhost}
+      SAPServiceLayer__Host: ${SAPServiceLayer__Host}
+      SAPServiceLayer__CompanyDB: ${SAPServiceLayer__CompanyDB}
+      SAPServiceLayer__Username: ${SAPServiceLayer__Username}
+      SAPServiceLayer__Password: ${SAPServiceLayer__Password}
+      SmtpSettings__Password: ${SmtpSettings__Password}
+      ALLOW_SELF_SIGNED_TLS: "true"     # Dev: bypass SAP self-signed cert
+    volumes:
+      - ./BackEndAPI/Logs:/app/Logs                # mount logs ra host
+      - ./BackEndAPI/uploads:/app/uploads          # uploads persistent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped

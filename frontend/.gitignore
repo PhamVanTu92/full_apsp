@@ -1,0 +1,53 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# dependencies
+/node_modules
+dist.rar
+dist.zip
+package-lock.json
+yarn.lock
+
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Themes
+public/themes/soho-light/
+public/themes/soho-dark/
+public/themes/viva-light/
+public/themes/viva-dark/
+public/themes/mira/
+public/themes/nano/
+
+# Environment files — chứa credentials, không commit
+.env.development
+.env.uat
+.env.production
+.env.staging
+.env.*.local
+
+# Claude Code local files
+CLAUDE.local.md
+.claude/settings.local.json

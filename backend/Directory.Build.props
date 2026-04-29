@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Bật Roslyn analyzer cho toàn solution -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+
+    <!-- Cảnh báo nhưng chưa fail build — bật khi codebase đã sạch -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Sinh XML doc cho Swagger -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      CS1591: missing XML doc — chấp nhận
+      NU1902: MailKit/MimeKit 4.14 có CVE moderate (GHSA-9j88-vvj5-vhgr, GHSA-g7hc-96xr-gvvx)
+              chưa có patch upstream — đã upgrade lên latest, theo dõi và bỏ NU1902 khi upstream fix.
+    -->
+    <NoWarn>$(NoWarn);CS1591;NU1902</NoWarn>
+  </PropertyGroup>
+</Project>

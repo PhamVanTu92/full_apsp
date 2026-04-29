@@ -1,0 +1,74 @@
+[
+    {
+        "id": "C00001",
+        "name": "Nhà phân phối A",
+        "data": [
+            {
+                "id": 1,
+                "cardCode": "00001",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            },
+            {
+                "id": 2,
+                "cardCode": "00002",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            },
+            {
+                "id": 3,
+                "cardCode": "00003",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            },
+            {
+                "id": 4,
+                "cardCode": "00004",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            }
+        ]
+    },
+    {
+        "id": "C00002",
+        "name": "Nhà phân phối B",
+        "data": [
+            {
+                "id": 5,
+                "cardCode": "00005",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            }
+        ]
+    },
+    {
+        "id": "C00001",
+        "name": "Nhà phân phối C",
+        "data": [
+            {
+                "id": 6,
+                "cardCode": "00006",
+                "docDate": "2025-04-16T04:15:56.147Z",
+                "originPrice": 1230000,
+                "billPrice": 2120000,
+                "discount": 2,
+                "totalPrice": 2120000
+            }
+        ]
+    }
+]

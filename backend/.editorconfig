@@ -1,0 +1,115 @@
+root = true
+
+###############################
+# Core EditorConfig Options   #
+###############################
+[*]
+charset = utf-8
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,yml,yaml,xml,csproj,props,targets}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+###############################
+# C# Code Style Rules         #
+###############################
+[*.cs]
+
+# Modern C# features
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:silent
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_prefer_braces = true:warning
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+
+# Null checks
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# Pattern matching
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Naming conventions
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = warning
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_symbols.interface.applicable_accessibilities = *
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+dotnet_naming_rule.private_field_underscore.severity = warning
+dotnet_naming_rule.private_field_underscore.symbols = private_fields
+dotnet_naming_rule.private_field_underscore.style = underscore_camel
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+# Unused code warnings
+dotnet_diagnostic.IDE0005.severity = warning   # unused using
+dotnet_diagnostic.CA1822.severity = suggestion # mark members as static
+dotnet_diagnostic.CA2007.severity = none       # ConfigureAwait — không cần trong ASP.NET Core
+
+# Critical rules — async/await
+dotnet_diagnostic.CS4014.severity = warning    # awaitable not awaited (TODO: nâng lên error sau khi fix hết)
+dotnet_diagnostic.CS1998.severity = warning    # async without await
+dotnet_diagnostic.VSTHRD002.severity = warning # avoid Result/Wait
+dotnet_diagnostic.VSTHRD110.severity = warning # observe result of async
+
+# Security
+dotnet_diagnostic.CA5350.severity = warning    # weak crypto
+dotnet_diagnostic.CA5351.severity = error      # broken crypto
+dotnet_diagnostic.CA3001.severity = warning    # SQL injection
+
+# Code quality (downgrade noisy ones to suggestion)
+dotnet_diagnostic.CA1031.severity = suggestion # catch general exception
+dotnet_diagnostic.CA1303.severity = none       # localizable strings
+dotnet_diagnostic.CA1305.severity = suggestion # IFormatProvider
+dotnet_diagnostic.CA1062.severity = suggestion # validate public args
+
+# Style/naming — không áp dụng được cho code legacy
+dotnet_diagnostic.CA1707.severity = none       # underscore in member name (Zalo response model)
+dotnet_diagnostic.CA1304.severity = suggestion # specify CultureInfo
+dotnet_diagnostic.CA1309.severity = suggestion # use ordinal StringComparison
+dotnet_diagnostic.CA1310.severity = suggestion # specify StringComparison
+dotnet_diagnostic.CA1311.severity = suggestion # specify culture for ToUpper/ToLower
+dotnet_diagnostic.CA1866.severity = suggestion # use char overload
+
+# Nullable reference — TODO: bật dần từng module sau khi annotate xong
+dotnet_diagnostic.CS8600.severity = suggestion # converting null literal
+dotnet_diagnostic.CS8601.severity = suggestion # possible null reference assignment
+dotnet_diagnostic.CS8602.severity = suggestion # dereference of possibly null
+dotnet_diagnostic.CS8604.severity = suggestion # possible null argument
+dotnet_diagnostic.CS8618.severity = suggestion # non-nullable property uninitialized
+dotnet_diagnostic.CS8619.severity = suggestion # nullability mismatch
+dotnet_diagnostic.CS8620.severity = suggestion # nullability mismatch type argument
+dotnet_diagnostic.CS8629.severity = suggestion # nullable value type may be null
+
+# CA2200 — re-throw exception destroys stack trace (giữ là warning)
+dotnet_diagnostic.CA2200.severity = warning
+
+# Legacy cleanup warnings — không phải bug, hạ xuống suggestion
+dotnet_diagnostic.CS0168.severity = suggestion # variable declared but never used
+dotnet_diagnostic.CS0219.severity = suggestion # variable assigned but never used
+dotnet_diagnostic.CS8603.severity = suggestion # possible null return
+dotnet_diagnostic.CS0414.severity = suggestion # field assigned but never used
+dotnet_diagnostic.CA1805.severity = suggestion # don't initialize to default
+dotnet_diagnostic.CA1862.severity = suggestion # use StringComparison instead of ToLower
+
+# Obsolete API — TODO: migrate WebRequest sang HttpClient
+dotnet_diagnostic.CS0618.severity = warning   # obsolete API
+dotnet_diagnostic.SYSLIB0014.severity = warning # WebRequest obsolete

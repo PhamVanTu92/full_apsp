@@ -1,0 +1,70 @@
+.notification-panel {
+  z-index: 1000;
+  position: absolute;
+  top: 0;
+  right: 10px;
+  width: 27rem;
+  background-color: #fff;
+  border-radius: 5px;
+  border: 1px solid var(--surface-300);
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0s, opacity 0.2s linear;
+}
+
+.notification-panel.show {
+  visibility: visible;
+  opacity: 1;
+}
+
+.notification-list {
+  max-height: 32rem;
+  overflow-y: auto;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: #888;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Notification Item */
+.notification-item:hover .more-options-btn {
+  display: block;
+}
+
+.more-options-btn {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+}
+
+.notification-message {
+  width: 20rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Unread Dot */
+.unread-dot {
+  height: 10px;
+  width: 10px;
+  background-color: var(--primary-500);
+  border-radius: 50%;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}

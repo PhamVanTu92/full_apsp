@@ -1,0 +1,28 @@
+.title-prd {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.cursor-pointer:hover {
+    opacity: 0.8;
+}
+
+.cus-shadow {
+    box-shadow: rgba(33, 35, 38, 0.1) 0px 10px 20px -10px;
+}
+
+/* Style cho text ở giữa donut chart */
+.chart-center-text {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}

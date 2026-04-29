@@ -1,0 +1,55 @@
+.image-upload-section h6 {
+    margin-bottom: 0.5rem;
+}
+
+.uploaded-image {
+    position: relative;
+    display: inline-block;
+}
+
+.remove-image-btn {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    background-color: #ef4444;
+    /* red-500 */
+    color: white;
+    border-radius: 50%;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    font-size: 0.75rem;
+}
+
+.upload-button {
+    border: 2px dashed #d1d5db;
+    /* gray-300 */
+    border-radius: 0.5rem;
+    width: 4rem;
+    height: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #9ca3af;
+    /* gray-400 */
+    font-size: 0.75rem;
+}
+
+.upload-button i {
+    font-size: 1.5rem;
+    /* text-2xl */
+    color: #9ca3af;
+    /* gray-400 */
+}
+
+.image-preview-container img {
+    max-width: 100%;
+    max-height: 30rem;
+    object-fit: contain;
+}

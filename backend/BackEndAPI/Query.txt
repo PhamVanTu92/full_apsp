@@ -1,0 +1,1659 @@
+﻿ALTER DATABASE DB_GLAPSP  
+SET CHANGE_TRACKING = ON  
+(CHANGE_RETENTION = 1 DAYS, AUTO_CLEANUP = ON);
+
+ALTER TABLE OCRD ENABLE CHANGE_TRACKING  
+WITH (TRACK_COLUMNS_UPDATED = ON);
+
+ALTER TABLE [@HMCN] ENABLE CHANGE_TRACKING  
+WITH (TRACK_COLUMNS_UPDATED = ON);
+
+ALTER TABLE OITM ENABLE CHANGE_TRACKING  
+WITH (TRACK_COLUMNS_UPDATED = ON);
+
+ALTER TABLE ITM1 ENABLE CHANGE_TRACKING  
+WITH (TRACK_COLUMNS_UPDATED = ON);
+
+
+
+        public void getPromotions(List<Promotion> promotionByCustomer, PromotionParam promotionParam,
+            ref PromotionOrder promotionOrder)
+        {
+            List<PromotionOrderLine> prooderline = new List<PromotionOrderLine>();
+            int FlagCust = 0, FlagCust2 = 0;
+            foreach (var promotion in promotionByCustomer.ToList())
+            {
+                var idb = promotion.PromotionBrand.Select(obj => obj.BrandId).ToList();
+                var idI = promotion.PromotionIndustry.Select(obj => obj.IndustryId).ToList();
+                var itemDss = _context.Item.AsNoTracking().AsSplitQuery().Where(x => idb.Contains((int)x.BrandId) &&
+                        idI.Contains((int)x.IndustryId))
+                    .Include(e => e.Packing)
+                    .Include(e => e.ItemType)
+                    .ToList();
+                var prolines = promotion.PromotionLine.Where(e => e.HasException == false).ToList();
+                foreach (var proline in prolines.ToList())
+                {
+                    List<PromotionOrderLineSub> prooderlinesub = new List<PromotionOrderLineSub>();
+                    PromotionOrderLine promotionOrderLine = new PromotionOrderLine();
+                    promotionOrderLine.PromotionId = promotion.Id;
+                    promotionOrderLine.IsOtherPromotion = promotion.IsOtherPromotion;
+                    promotionOrderLine.PromotionCode = promotion.PromotionCode;
+                    promotionOrderLine.PromotionDesc = promotion.Note;
+                    promotionOrderLine.IsOtherDist = promotion.IsOtherDist;
+                    promotionOrderLine.IsOtherDistExc = promotion.IsOtherDistExc;
+                    promotionOrderLine.IsOtherPromotion = promotion.IsOtherPromotion;
+                    promotionOrderLine.IsOtherPromotionExc = promotion.IsOtherPromotionExc;
+                    promotionOrderLine.IsOtherPay = promotion.IsOtherPay;
+                    promotionOrderLine.IsOtherPayExc = promotion.IsOtherPayExc;
+                    promotionOrderLine.PromotionName = promotion.PromotionName;
+                    var promotionLineSubs = proline.PromotionLineSub.ToList();
+                    // Mua hàng tặng hàng
+                    if (proline.SubType == 1)
+                    {
+                        bool checkmin = false, checkIsQty = false;
+                        int Qty = 0;
+                        // Tính cho đơn hàng có mặt hàng khác loại
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "R")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item.AsNoTracking().AsSplitQuery()
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item.AsNoTracking().AsSplitQuery()
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count > 0)
+                            {
+                                var iditemx = items.Select(obj => obj.Id).ToList();
+                                Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                    .Sum(e => e.Quantity);
+                                var listparams = promotionParam.PromotionParamLine
+                                    .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                                if (Qty >= promotionLineSub.Quantity)
+                                {
+                                    int FlagQty = 0;
+                                    foreach (var param in listparams)
+                                    {
+                                        param.QuantityRef = param.Quantity;
+                                        var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = param.LineId;
+                                        prolinesub.ItemId = itemasc.Id;
+                                        if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = itemasc.ItemCode;
+                                        prolinesub.AddAccumulate = proline.AddAccumulate;
+                                        prolinesub.ItemName = itemasc.ItemName;
+                                        prolinesub.PackingId = (int)itemasc.PackingId;
+                                        prolinesub.PackingName = itemasc.Packing.Name;
+                                        if (promotionLineSub.AddType == "R")
+                                        {
+                                            int addqty = ((int)param.Quantity / (int)promotionLineSub.AddBuy) *
+                                                         promotionLineSub.AddQty;
+                                            FlagQty = ((int)param.Quantity / (int)promotionLineSub.AddBuy);
+                                            prolinesub.QuantityAdd = addqty;
+                                            param.Quantity = param.Quantity - (addqty * (int)promotionLineSub.AddBuy /
+                                                                               promotionLineSub.AddQty);
+                                        }
+
+                                        int and = 0, or = 0, check = 0;
+                                        if (FlagQty > 0)
+                                            foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                            {
+                                                foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                                {
+                                                    if (subsub.Cond == "AND")
+                                                        and = and + 1;
+                                                    else if (subsub.Cond == "OR")
+                                                        or = or + 1;
+                                                    check = check + 1;
+                                                    PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                    var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                        .Where(x => x.Id == itemadd.ItemId)
+                                                        .Include(e => e.ItemType)
+                                                        .Include(e => e.Packing)
+                                                        .FirstOrDefault();
+                                                    prolinesub1.Cond = subsub.Cond;
+                                                    prolinesub1.InGroup = subsub.InGroup;
+                                                    if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                        prolinesub1.ItemGroup = "VPKM";
+                                                    else
+                                                        prolinesub1.ItemGroup = "KH";
+                                                    prolinesub1.ItemId = subitems.Id;
+                                                    prolinesub1.LineId = param.LineId;
+                                                    prolinesub1.ItemCode = subitems.ItemCode;
+                                                    prolinesub1.ItemName = subitems.ItemName;
+                                                    prolinesub1.PackingId = (int)subitems.PackingId;
+                                                    prolinesub1.PackingName = subitems.Packing.Name;
+                                                    prolinesub1.QuantityAdd = FlagQty * subsub.Quantity;
+                                                    prooderlinesub.Add(prolinesub1);
+                                                }
+                                            }
+
+                                        if (check > 0 && and > 0)
+                                            prolinesub.Cond = "AND";
+                                        if (check > 0 && and == 0 && or > 0)
+                                            prolinesub.Cond = "OR";
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                        FlagQty = 0;
+                                    }
+                                }
+                            }
+                            else
+                                continue;
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "R")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count > 0)
+                            {
+                                var iditemx = items.Select(obj => obj.Id).ToList();
+                                Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                    .Sum(e => e.Quantity);
+                                if (Qty >= promotionLineSub.Quantity)
+                                {
+                                    int QtyFlag = 0;
+                                    var listId = promotionParam.PromotionParamLine
+                                        .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0)
+                                        .Select(e => e.ItemId);
+                                    var itemasc = items.Where(x => listId.Contains(x.Id)).OrderBy(e => e.Price)
+                                        .FirstOrDefault();
+                                    var ps = promotionParam.PromotionParamLine.FirstOrDefault(x =>
+                                        x.ItemId == itemasc.Id);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.LineId = ps.LineId;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                        prolinesub.ItemGroup = "VPKM";
+                                    else
+                                        prolinesub.ItemGroup = "KH";
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    while (Qty >= promotionLineSub.Quantity)
+                                    {
+                                        int addqty = (Qty / (int)promotionLineSub.AddBuy) *
+                                                     promotionLineSub.AddQty;
+                                        prolinesub.QuantityAdd = addqty +
+                                                                 (int)prolinesub.QuantityAdd.GetValueOrDefault();
+                                        Qty = Qty - promotionLineSub.Quantity * addqty;
+                                        QtyFlag = QtyFlag + addqty;
+                                    }
+
+                                    int and = 0, or = 0, check = 0;
+                                    if (QtyFlag > 0)
+                                        foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                        {
+                                            foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                            {
+                                                if (subsub.Cond == "AND")
+                                                    and = and + 1;
+                                                else if (subsub.Cond == "OR")
+                                                    or = or + 1;
+                                                check = check + 1;
+                                                PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                var subitems = _context.Item
+                                                    .Where(x => x.Id == itemadd.ItemId)
+                                                    .Include(e => e.ItemType)
+                                                    .Include(e => e.Packing)
+                                                    .FirstOrDefault();
+                                                prolinesub1.Cond = subsub.Cond;
+                                                prolinesub1.InGroup = subsub.InGroup;
+                                                if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                    prolinesub1.ItemGroup = "VPKM";
+                                                else
+                                                    prolinesub1.ItemGroup = "KH";
+                                                prolinesub1.ItemId = subitems.Id;
+                                                prolinesub1.LineId = ps.LineId;
+                                                prolinesub1.ItemCode = subitems.ItemCode;
+                                                prolinesub1.ItemName = subitems.ItemName;
+                                                prolinesub1.PackingId = (int)subitems.PackingId;
+                                                prolinesub1.PackingName = subitems.Packing.Name;
+                                                prolinesub1.QuantityAdd = QtyFlag * subsub.Quantity;
+                                                prooderlinesub.Add(prolinesub1);
+                                            }
+                                        }
+
+                                    if (check > 0 && and > 0)
+                                        prolinesub.Cond = "AND";
+                                    if (check > 0 && and == 0 && or > 0)
+                                        prolinesub.Cond = "OR";
+                                    if (prolinesub.QuantityAdd > 0)
+                                    {
+                                        prooderlinesub.Add(prolinesub);
+                                        promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                            .ForEach(e => e.Quantity = e.Quantity - promotionLineSub.Quantity);
+                                    }
+                                }
+                                else
+                                    continue;
+                            }
+                            else
+                                continue;
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "Q")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+
+                            List<Item> items = null;
+                            items = _context.Item.AsNoTracking().AsSplitQuery()
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item.AsNoTracking().AsSplitQuery()
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count < 2)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty >= promotionLineSub.Quantity && checkmin == false)
+                            {
+                                int FlagQty = 0;
+                                foreach (var param in listparams)
+                                {
+                                    if (param.Quantity >= promotionLineSub.Quantity)
+                                    {
+                                        var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = param.LineId;
+                                        prolinesub.ItemId = itemasc.Id;
+                                        if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = itemasc.ItemCode;
+                                        prolinesub.ItemName = itemasc.ItemName;
+                                        prolinesub.PackingId = (int)itemasc.PackingId;
+                                        prolinesub.PackingName = itemasc.Packing.Name;
+                                        while (param.Quantity >= promotionLineSub.Quantity)
+                                        {
+                                            prolinesub.QuantityAdd = (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                                     promotionLineSub.AddQty;
+                                            Qty = Qty - promotionLineSub.Quantity;
+                                            FlagQty = FlagQty + 1;
+                                            param.Quantity = param.Quantity - (int)promotionLineSub.Quantity;
+                                        }
+
+                                        int and = 0, or = 0, check = 0;
+                                        if (FlagQty > 0)
+                                            foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                            {
+                                                foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                                {
+                                                    if (subsub.Cond == "AND")
+                                                        and = and + 1;
+                                                    else if (subsub.Cond == "OR")
+                                                        or = or + 1;
+                                                    check = check + 1;
+                                                    PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                    var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                        .Where(x => x.Id == itemadd.ItemId)
+                                                        .Include(e => e.ItemType)
+                                                        .Include(e => e.Packing)
+                                                        .FirstOrDefault();
+                                                    prolinesub1.Cond = subsub.Cond;
+                                                    prolinesub1.InGroup = subsub.InGroup;
+                                                    if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                        prolinesub1.ItemGroup = "VPKM";
+                                                    else
+                                                        prolinesub1.ItemGroup = "KH";
+                                                    prolinesub1.ItemId = subitems.Id;
+                                                    prolinesub1.LineId = param.LineId;
+                                                    prolinesub1.ItemCode = subitems.ItemCode;
+                                                    prolinesub1.ItemName = subitems.ItemName;
+                                                    prolinesub1.PackingId = (int)subitems.PackingId;
+                                                    prolinesub1.PackingName = subitems.Packing.Name;
+                                                    prolinesub1.QuantityAdd = FlagQty * subsub.Quantity;
+                                                    prooderlinesub.Add(prolinesub1);
+                                                }
+                                            }
+
+                                        if (check > 0 && and > 0)
+                                            prolinesub.Cond = "AND";
+                                        if (check > 0 && and == 0 && or > 0)
+                                            prolinesub.Cond = "OR";
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                        FlagQty = 0;
+                                    }
+                                    else
+                                        continue;
+                                }
+                            }
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "Q")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count < 2)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty >= promotionLineSub.Quantity && checkmin == false)
+                            {
+                                if (Qty >= promotionLineSub.Quantity)
+                                {
+                                    int QtyFlag = 0;
+                                    var listId = promotionParam.PromotionParamLine
+                                        .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0)
+                                        .Select(e => e.ItemId);
+                                    var itemasc = items.Where(x => listId.Contains(x.Id)).OrderBy(e => e.Price)
+                                        .FirstOrDefault();
+                                    var ps = promotionParam.PromotionParamLine.FirstOrDefault(x =>
+                                        x.ItemId == itemasc.Id);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.LineId = ps.LineId;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                        prolinesub.ItemGroup = "VPKM";
+                                    else
+                                        prolinesub.ItemGroup = "KH";
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    while (Qty >= promotionLineSub.Quantity)
+                                    {
+                                        if (promotionLineSub.AddType == "Q")
+                                        {
+                                            prolinesub.QuantityAdd = (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                                     promotionLineSub.AddQty;
+                                            Qty = Qty - promotionLineSub.Quantity;
+                                            QtyFlag = QtyFlag + 1;
+                                        }
+                                    }
+
+                                    if (QtyFlag > 0)
+                                    {
+                                        promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                            .ForEach(e => e.Quantity = 0);
+                                        int and = 0, or = 0, check = 0;
+                                        foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                        {
+                                            foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                            {
+                                                if (subsub.Cond == "AND")
+                                                    and = and + 1;
+                                                else if (subsub.Cond == "OR")
+                                                    or = or + 1;
+                                                check = check + 1;
+                                                PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                var subitems = _context.Item
+                                                    .Where(x => x.Id == itemadd.ItemId)
+                                                    .Include(e => e.ItemType)
+                                                    .Include(e => e.Packing)
+                                                    .FirstOrDefault();
+                                                prolinesub1.Cond = subsub.Cond;
+                                                prolinesub1.InGroup = subsub.InGroup;
+                                                if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                    prolinesub1.ItemGroup = "VPKM";
+                                                else
+                                                    prolinesub1.ItemGroup = "KH";
+                                                prolinesub1.ItemId = subitems.Id;
+                                                prolinesub1.LineId = ps.LineId;
+                                                prolinesub1.ItemCode = subitems.ItemCode;
+                                                prolinesub1.ItemName = subitems.ItemName;
+                                                prolinesub1.PackingId = (int)subitems.PackingId;
+                                                prolinesub1.PackingName = subitems.Packing.Name;
+                                                prolinesub1.QuantityAdd = QtyFlag * subsub.Quantity;
+                                                prooderlinesub.Add(prolinesub1);
+                                            }
+                                        }
+
+                                        if (check > 0 && and > 0)
+                                            prolinesub.Cond = "AND";
+                                        if (check > 0 && and == 0 && or > 0)
+                                            prolinesub.Cond = "OR";
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                    }
+                                }
+                                else
+                                    continue;
+                            }
+                        }
+
+                        //Tính cho đơn hàng có mặt hàng cùng loại
+                        foreach (var proItem in promotionParam.PromotionParamLine.ToList())
+                        {
+                            Qty = (int)proItem.Quantity;
+                            var itemDs = itemDss.Where(x => x.Id == proItem.ItemId).ToList();
+                            foreach (var promotionLineSub in promotionLineSubs.Where(e => e.IsSameType == false)
+                                         .OrderByDescending(e => e.Quantity).ToList())
+                            {
+                                if (Qty < promotionLineSub.Quantity)
+                                    continue;
+                                else
+                                {
+                                    int QtyFlag = 0;
+                                    var idItemType = promotionLineSub.PromotionItemBuy.Where(obj => obj.ItemType == "G")
+                                        .Select(obj => obj.ItemId).ToList();
+                                    var idItemId = promotionLineSub.PromotionItemBuy.Where(obj => obj.ItemType == "I")
+                                        .Select(obj => obj.ItemId).ToList();
+                                    var itemss = itemDs.Where(x => idItemId.Contains((int)x.Id)).FirstOrDefault();
+                                    var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                                    Item items = null;
+                                    items = itemDs.Where(x =>
+                                            idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId))
+                                        .FirstOrDefault();
+                                    if (items == null)
+                                    {
+                                        items = itemDs.Where(x => idItemId.Contains((int)x.Id)).FirstOrDefault();
+                                    }
+
+                                    if (items != null)
+                                    {
+                                        Qty = (int)proItem.Quantity;
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = proItem.LineId;
+                                        prolinesub.ItemId = proItem.ItemId;
+                                        if (items.ItemType.Name.Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = items.ItemCode;
+                                        prolinesub.ItemName = items.ItemName;
+                                        prolinesub.PackingId = (int)items.PackingId;
+                                        prolinesub.PackingName = items.Packing.Name;
+                                        while (Qty >= promotionLineSub.Quantity)
+                                        {
+                                            if (promotionLineSub.AddType == "Q")
+                                            {
+                                                prolinesub.QuantityAdd =
+                                                    (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                    promotionLineSub.AddQty;
+                                                Qty = Qty - promotionLineSub.Quantity;
+                                                QtyFlag = QtyFlag + 1;
+                                            }
+                                            else
+                                            {
+                                                int addqty = (Qty / (int)promotionLineSub.AddBuy) *
+                                                             promotionLineSub.AddQty;
+                                                prolinesub.QuantityAdd = addqty +
+                                                                         (int)prolinesub.QuantityAdd
+                                                                             .GetValueOrDefault();
+                                                Qty = Qty - promotionLineSub.Quantity * addqty;
+                                                QtyFlag = QtyFlag + 1;
+                                            }
+
+                                            if (prolinesub.QuantityAdd > 0)
+                                                proItem.Quantity = proItem.Quantity - promotionLineSub.Quantity;
+                                        }
+
+                                        int and = 0, or = 0, check = 0;
+                                        foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                        {
+                                            foreach (var itemadd in subsub.PromotionSubItemAdd)
+                                            {
+                                                if (subsub.Cond == "AND")
+                                                    and = and + 1;
+                                                else if (subsub.Cond == "OR")
+                                                    or = or + 1;
+                                                check = check + 1;
+                                                PromotionOrderLineSub prolinesuba = new PromotionOrderLineSub();
+                                                var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                    .Where(x => x.Id == itemadd.ItemId)
+                                                    .Include(e => e.ItemType)
+                                                    .Include(e => e.Packing)
+                                                    .FirstOrDefault();
+                                                prolinesuba.Cond = subsub.Cond;
+                                                prolinesuba.InGroup = subsub.InGroup;
+                                                if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                    prolinesuba.ItemGroup = "VPKM";
+                                                else
+                                                    prolinesuba.ItemGroup = "KH";
+                                                prolinesuba.ItemId = subitems.Id;
+                                                prolinesuba.LineId = proItem.LineId;
+                                                prolinesuba.ItemCode = subitems.ItemCode;
+                                                prolinesuba.ItemName = subitems.ItemName;
+                                                prolinesuba.PackingId = (int)subitems.PackingId;
+                                                prolinesuba.PackingName = subitems.Packing.Name;
+                                                prolinesuba.QuantityAdd = QtyFlag * subsub.Quantity;
+                                                prooderlinesub.Add(prolinesuba);
+                                            }
+                                        }
+
+                                        if (check > 0 && and > 0)
+                                            prolinesub.Cond = "AND";
+                                        if (check > 0 && and == 0 && or > 0)
+                                            prolinesub.Cond = "OR";
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (proline.SubType == 2)
+                    {
+                        int Flag2 = 0;
+                        if (Flag2 == 0)
+                            promotionParam.PromotionParamLine.ForEach(item => item.Quantity = item.QuantityRef);
+                        if (FlagCust2 > 0)
+                            promotionParam.PromotionParamLine.ForEach(item => item.Quantity = item.QuantityRef);
+                        // Theo số lượng khác loại
+                        bool checkmin = false;
+                        int Qty = 0;
+                        foreach (var promotionLineSub in promotionLineSubs.Where(e => e.IsSameType == true)
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count == 0)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty >= promotionLineSub.Quantity && checkmin == false)
+                            {
+                                foreach (var param in listparams)
+                                {
+                                    var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.LineId = param.LineId;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    prolinesub.Discount = promotionLineSub.Discount;
+                                    prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                    prolinesub.PriceType = promotionLineSub.PriceType;
+                                    if (prolinesub.Discount > 0)
+                                    {
+                                        param.Quantity = 0;
+                                        prooderlinesub.Add(prolinesub);
+                                        checkmin = true;
+                                        Flag2 = Flag2 + 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Theo số lượng cùng loại
+                        foreach (var proItem in promotionParam.PromotionParamLine.ToList())
+                        {
+                            int QtyAdd = 0;
+                            QtyAdd = (int)proItem.Quantity;
+                            foreach (var promotionLineSub in promotionLineSubs
+                                         .Where(e => e.FollowBy == 1 && e.IsSameType == false)
+                                         .OrderByDescending(e => e.Quantity).ToList())
+                            {
+                                if (QtyAdd >= promotionLineSub.Quantity)
+                                {
+                                    var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                        .Select(obj => obj.ItemId)
+                                        .ToList();
+                                    var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                        .Select(obj => obj.ItemId)
+                                        .ToList();
+                                    var idpacking = promotionLineSub.PromotionUnit.Select(obj => obj.UomId)
+                                        .ToList();
+                                    Item itemss = null;
+                                    itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                        .Include(e => e.Packing)
+                                        .Include(e => e.ItemType)
+                                        .Where(x => x.Id == proItem.ItemId
+                                                    && idItemType.Contains((int)x.ItemTypeId) &&
+                                                    idpacking.Contains((int)x.PackingId)
+                                        ).FirstOrDefault();
+                                    if (itemss == null)
+                                    {
+                                        itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                            .Include(e => e.Packing)
+                                            .Include(e => e.ItemType)
+                                            .Where(x => x.Id == proItem.ItemId
+                                                        && idItemId.Contains((int)x.Id)
+                                            ).FirstOrDefault();
+                                    }
+
+                                    if (itemss != null)
+                                    {
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.ItemId = itemss.Id;
+                                        prolinesub.LineId = proItem.LineId;
+                                        prolinesub.ItemCode = itemss.ItemCode;
+                                        prolinesub.ItemName = itemss.ItemName;
+                                        prolinesub.PackingId = (int)itemss.PackingId;
+                                        prolinesub.PackingName = itemss.Packing.Name;
+                                        prolinesub.Discount = promotionLineSub.Discount;
+                                        prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                        prolinesub.PriceType = promotionLineSub.PriceType;
+                                        prooderlinesub.Add(prolinesub);
+                                        Flag2 = Flag2 + 1;
+                                        break;
+                                    }
+                                }
+                                else
+                                    continue;
+                            }
+
+                            double Flag = 0;
+                            if (Flag == 0)
+                            {
+                                double totalVolumn = 0;
+                                foreach (var promotionLineSub in promotionLineSubs.Where(e => e.FollowBy == 2).ToList())
+                                {
+                                    if (promotionParam.OrderDate.Date >= promotionLineSub.FromDate.Value.Date &&
+                                        promotionParam.OrderDate.Date <= promotionLineSub.ToDate.Value.Date)
+                                    {
+                                        Item itemss = null;
+                                        foreach (var prLine in promotionParam.PromotionParamLine.ToList())
+                                        {
+                                            var idItemType = promotionLineSub.PromotionItemBuy
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idItemId = promotionLineSub.PromotionItemBuy
+                                                .Where(e => e.ItemType == "I")
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idpacking = promotionLineSub.PromotionUnit
+                                                .Select(obj => obj.UomId).ToList();
+                                            itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                .Include(e => e.Packing)
+                                                .Where(x => x.Id == prLine.ItemId
+                                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                                            idpacking.Contains((int)x.PackingId)
+                                                ).FirstOrDefault();
+                                            if (itemss == null)
+                                            {
+                                                itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                    .Include(e => e.Packing)
+                                                    .Where(x => x.Id == prLine.ItemId
+                                                                && idItemId.Contains((int)x.Id)
+                                                    ).FirstOrDefault();
+                                            }
+
+                                            if (itemss != null)
+                                                totalVolumn = totalVolumn + (double)prLine.Quantity *
+                                                    (double)itemss.Packing.Volumn;
+                                        }
+
+                                        Flag = Flag + 1;
+                                    }
+
+                                    foreach (var prLine in promotionParam.PromotionParamLine.ToList())
+                                    {
+                                        if (totalVolumn >= promotionLineSub.MinVolumn)
+                                        {
+                                            Item itemss = null;
+                                            var idItemType = promotionLineSub.PromotionItemBuy
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idItemId = promotionLineSub.PromotionItemBuy
+                                                .Where(e => e.ItemType == "I")
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idpacking = promotionLineSub.PromotionUnit
+                                                .Select(obj => obj.UomId).ToList();
+                                            itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                .Include(e => e.Packing)
+                                                .Where(x => x.Id == prLine.ItemId
+                                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                                            idpacking.Contains((int)x.PackingId)
+                                                ).FirstOrDefault();
+                                            if (itemss == null)
+                                            {
+                                                itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                    .Include(e => e.Packing)
+                                                    .Where(x => x.Id == prLine.ItemId
+                                                                && idItemId.Contains((int)x.Id)
+                                                    ).FirstOrDefault();
+                                            }
+
+                                            PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                            prolinesub.Cond = "AND";
+                                            prolinesub.InGroup = 0;
+                                            prolinesub.ItemId = itemss.Id;
+                                            prolinesub.ItemCode = itemss.ItemCode;
+                                            prolinesub.LineId = prLine.LineId;
+                                            prolinesub.ItemName = itemss.ItemName;
+                                            prolinesub.PackingId = (int)itemss.PackingId;
+                                            prolinesub.PackingName = itemss.Packing.Name;
+                                            prolinesub.Discount = promotionLineSub.Discount;
+                                            prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                            prolinesub.PriceType = promotionLineSub.PriceType;
+                                            prooderlinesub.Add(prolinesub);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    promotionOrderLine.PromotionOrderLineSub = prooderlinesub;
+                    if (promotionOrderLine.PromotionOrderLineSub != null)
+                        prooderline.Add(promotionOrderLine);
+                    
+                }
+
+                var prolinesEx = promotion.PromotionLine.Where(e => e.HasException == true).ToList();
+                foreach (var proline in prolinesEx.ToList())
+                {
+                    List<PromotionOrderLineSub> prooderlinesub = new List<PromotionOrderLineSub>();
+                    PromotionOrderLine promotionOrderLine = new PromotionOrderLine();
+                    promotionOrderLine.PromotionId = promotion.Id;
+                    promotionOrderLine.IsOtherPromotion = promotion.IsOtherPromotionExc;
+                    promotionOrderLine.PromotionCode = promotion.PromotionCode;
+                    promotionOrderLine.PromotionDesc = promotion.Note;
+                    promotionOrderLine.PromotionName = promotion.PromotionName;
+                    var promotionLineSubs = proline.PromotionLineSub.ToList();
+                    // Mua hàng tặng hàng
+                    if (proline.SubType == 1)
+                    {
+                        bool checkmin = false, checkIsQty = false;
+                        int Qty = 0;
+                        // Tính cho đơn hàng có mặt hàng khác loại
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "R")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item.AsNoTracking().AsSplitQuery()
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item.AsNoTracking().AsSplitQuery()
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count > 0)
+                            {
+                                var iditemx = items.Select(obj => obj.Id).ToList();
+                                Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                    .Sum(e => e.Quantity);
+                                var listparams = promotionParam.PromotionParamLine
+                                    .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                                if (Qty < promotionLineSub.Quantity)
+                                {
+                                    int FlagQty = 0;
+                                    foreach (var param in listparams)
+                                    {
+                                        param.QuantityRef = param.Quantity;
+                                        var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = param.LineId;
+                                        prolinesub.ItemId = itemasc.Id;
+                                        if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = itemasc.ItemCode;
+                                        prolinesub.ItemName = itemasc.ItemName;
+                                        prolinesub.PackingId = (int)itemasc.PackingId;
+                                        prolinesub.PackingName = itemasc.Packing.Name;
+                                        if (promotionLineSub.AddType == "R")
+                                        {
+                                            int addqty = ((int)param.Quantity / (int)promotionLineSub.AddBuy) *
+                                                         promotionLineSub.AddQty;
+                                            FlagQty = ((int)param.Quantity / (int)promotionLineSub.AddBuy);
+                                            prolinesub.QuantityAdd = addqty;
+                                            param.Quantity = param.Quantity - (addqty * (int)promotionLineSub.AddBuy /
+                                                                               promotionLineSub.AddQty);
+                                        }
+
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                        if (FlagQty > 0)
+                                            foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                            {
+                                                foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                                {
+                                                    PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                    var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                        .Where(x => x.Id == itemadd.ItemId)
+                                                        .Include(e => e.ItemType)
+                                                        .Include(e => e.Packing)
+                                                        .FirstOrDefault();
+                                                    prolinesub1.Cond = subsub.Cond;
+                                                    prolinesub1.InGroup = subsub.InGroup;
+                                                    if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                        prolinesub1.ItemGroup = "VPKM";
+                                                    else
+                                                        prolinesub1.ItemGroup = "KH";
+                                                    prolinesub1.ItemId = subitems.Id;
+                                                    prolinesub1.LineId = param.LineId;
+                                                    prolinesub1.ItemCode = subitems.ItemCode;
+                                                    prolinesub1.ItemName = subitems.ItemName;
+                                                    prolinesub1.PackingId = (int)subitems.PackingId;
+                                                    prolinesub1.PackingName = subitems.Packing.Name;
+                                                    prolinesub1.QuantityAdd = FlagQty * subsub.Quantity;
+                                                    prooderlinesub.Add(prolinesub1);
+                                                }
+                                            }
+
+                                        FlagQty = 0;
+                                    }
+                                }
+                            }
+                            else
+                                continue;
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "R")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count > 0)
+                            {
+                                var iditemx = items.Select(obj => obj.Id).ToList();
+                                Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                    .Sum(e => e.Quantity);
+                                if (Qty < promotionLineSub.Quantity)
+                                {
+                                    int QtyFlag = 0;
+                                    var listId = promotionParam.PromotionParamLine
+                                        .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0)
+                                        .Select(e => e.ItemId);
+                                    var itemasc = items.Where(x => listId.Contains(x.Id)).OrderBy(e => e.Price)
+                                        .FirstOrDefault();
+                                    var ps = promotionParam.PromotionParamLine.FirstOrDefault(x =>
+                                        x.ItemId == itemasc.Id);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.LineId = ps.LineId;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                        prolinesub.ItemGroup = "VPKM";
+                                    else
+                                        prolinesub.ItemGroup = "KH";
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    while (Qty < promotionLineSub.Quantity && Qty > 0)
+                                    {
+                                        int addqty = (Qty / (int)promotionLineSub.AddBuy) *
+                                                     promotionLineSub.AddQty;
+                                        prolinesub.QuantityAdd = addqty +
+                                                                 (int)prolinesub.QuantityAdd.GetValueOrDefault();
+                                        Qty = Qty - promotionLineSub.Quantity * addqty;
+                                        QtyFlag = QtyFlag + addqty;
+                                    }
+
+                                    if (prolinesub.QuantityAdd > 0)
+                                    {
+                                        prooderlinesub.Add(prolinesub);
+                                        promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                            .ForEach(e => e.Quantity = e.Quantity - promotionLineSub.Quantity);
+                                    }
+
+                                    if (QtyFlag > 0)
+                                        foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                        {
+                                            foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                            {
+                                                PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                var subitems = _context.Item
+                                                    .Where(x => x.Id == itemadd.ItemId)
+                                                    .Include(e => e.ItemType)
+                                                    .Include(e => e.Packing)
+                                                    .FirstOrDefault();
+                                                prolinesub1.Cond = subsub.Cond;
+                                                prolinesub1.InGroup = subsub.InGroup;
+                                                if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                    prolinesub1.ItemGroup = "VPKM";
+                                                else
+                                                    prolinesub1.ItemGroup = "KH";
+                                                prolinesub1.ItemId = subitems.Id;
+                                                prolinesub1.LineId = ps.LineId;
+                                                prolinesub1.ItemCode = subitems.ItemCode;
+                                                prolinesub1.ItemName = subitems.ItemName;
+                                                prolinesub1.PackingId = (int)subitems.PackingId;
+                                                prolinesub1.PackingName = subitems.Packing.Name;
+                                                prolinesub1.QuantityAdd = QtyFlag * subsub.Quantity;
+                                                prooderlinesub.Add(prolinesub1);
+                                            }
+                                        }
+                                }
+                                else
+                                    continue;
+                            }
+                            else
+                                continue;
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "Q")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item.AsNoTracking().AsSplitQuery()
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item.AsNoTracking().AsSplitQuery()
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count == 0)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty >= promotionLineSub.Quantity && checkmin == false)
+                            {
+                                int FlagQty = 0;
+                                foreach (var param in listparams)
+                                {
+                                    if (param.Quantity < promotionLineSub.Quantity)
+                                    {
+                                        var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = param.LineId;
+                                        prolinesub.ItemId = itemasc.Id;
+                                        if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = itemasc.ItemCode;
+                                        prolinesub.ItemName = itemasc.ItemName;
+                                        prolinesub.PackingId = (int)itemasc.PackingId;
+                                        prolinesub.PackingName = itemasc.Packing.Name;
+                                        while (param.Quantity < promotionLineSub.Quantity && param.Quantity > 0)
+                                        {
+                                            prolinesub.QuantityAdd = (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                                     promotionLineSub.AddQty;
+                                            Qty = Qty - promotionLineSub.Quantity;
+                                            FlagQty = FlagQty + 1;
+                                            param.Quantity = param.Quantity - (int)promotionLineSub.Quantity;
+                                        }
+
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                        if (FlagQty > 0)
+                                            foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                            {
+                                                foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                                {
+                                                    PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                    var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                        .Where(x => x.Id == itemadd.ItemId)
+                                                        .Include(e => e.ItemType)
+                                                        .Include(e => e.Packing)
+                                                        .FirstOrDefault();
+                                                    prolinesub1.Cond = subsub.Cond;
+                                                    prolinesub1.InGroup = subsub.InGroup;
+                                                    if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                        prolinesub1.ItemGroup = "VPKM";
+                                                    else
+                                                        prolinesub1.ItemGroup = "KH";
+                                                    prolinesub1.ItemId = subitems.Id;
+                                                    prolinesub1.LineId = param.LineId;
+                                                    prolinesub1.ItemCode = subitems.ItemCode;
+                                                    prolinesub1.ItemName = subitems.ItemName;
+                                                    prolinesub1.PackingId = (int)subitems.PackingId;
+                                                    prolinesub1.PackingName = subitems.Packing.Name;
+                                                    prolinesub1.QuantityAdd = FlagQty * subsub.Quantity;
+                                                    prooderlinesub.Add(prolinesub1);
+                                                }
+                                            }
+
+                                        FlagQty = 0;
+                                    }
+                                    else
+                                        continue;
+                                }
+                            }
+                        }
+
+                        foreach (var promotionLineSub in promotionLineSubs
+                                     .Where(e => e.IsSameType == true && e.AddType == "Q")
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count == 0)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty >= promotionLineSub.Quantity && checkmin == false)
+                            {
+                                if (Qty < promotionLineSub.Quantity)
+                                {
+                                    int QtyFlag = 0;
+                                    var listId = promotionParam.PromotionParamLine
+                                        .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0)
+                                        .Select(e => e.ItemId);
+                                    var itemasc = items.Where(x => listId.Contains(x.Id)).OrderBy(e => e.Price)
+                                        .FirstOrDefault();
+                                    var ps = promotionParam.PromotionParamLine.FirstOrDefault(x =>
+                                        x.ItemId == itemasc.Id);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.LineId = ps.LineId;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    if (itemasc.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                        prolinesub.ItemGroup = "VPKM";
+                                    else
+                                        prolinesub.ItemGroup = "KH";
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    while (Qty < promotionLineSub.Quantity && Qty > 0)
+                                    {
+                                        if (promotionLineSub.AddType == "Q")
+                                        {
+                                            prolinesub.QuantityAdd = (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                                     promotionLineSub.AddQty;
+                                            Qty = Qty - promotionLineSub.Quantity;
+                                            QtyFlag = QtyFlag + 1;
+                                        }
+                                    }
+
+                                    if (QtyFlag > 0)
+                                    {
+                                        if (prolinesub.QuantityAdd > 0)
+                                            prooderlinesub.Add(prolinesub);
+                                        promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                            .ForEach(e => e.Quantity = 0);
+                                        foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                        {
+                                            foreach (var itemadd in subsub.PromotionSubItemAdd.ToList())
+                                            {
+                                                PromotionOrderLineSub prolinesub1 = new PromotionOrderLineSub();
+                                                var subitems = _context.Item
+                                                    .Where(x => x.Id == itemadd.ItemId)
+                                                    .Include(e => e.ItemType)
+                                                    .Include(e => e.Packing)
+                                                    .FirstOrDefault();
+                                                prolinesub1.Cond = subsub.Cond;
+                                                prolinesub1.InGroup = subsub.InGroup;
+                                                if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                    prolinesub1.ItemGroup = "VPKM";
+                                                else
+                                                    prolinesub1.ItemGroup = "KH";
+                                                prolinesub1.ItemId = subitems.Id;
+                                                prolinesub1.LineId = ps.LineId;
+                                                prolinesub1.ItemCode = subitems.ItemCode;
+                                                prolinesub1.ItemName = subitems.ItemName;
+                                                prolinesub1.PackingId = (int)subitems.PackingId;
+                                                prolinesub1.PackingName = subitems.Packing.Name;
+                                                prolinesub1.QuantityAdd = QtyFlag * subsub.Quantity;
+                                                prooderlinesub.Add(prolinesub1);
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                    continue;
+                            }
+                        }
+
+                        //Tính cho đơn hàng có mặt hàng cùng loại
+                        foreach (var proItem in promotionParam.PromotionParamLine.ToList())
+                        {
+                            Qty = (int)proItem.Quantity;
+                            var itemDs = itemDss.Where(x => x.Id == proItem.ItemId).ToList();
+                            foreach (var promotionLineSub in promotionLineSubs.Where(e => e.IsSameType == false)
+                                         .OrderByDescending(e => e.Quantity).ToList())
+                            {
+                                if (Qty >= promotionLineSub.Quantity)
+                                    continue;
+                                else
+                                {
+                                    int QtyFlag = 0;
+                                    var idItemType = promotionLineSub.PromotionItemBuy.Where(obj => obj.ItemType == "G")
+                                        .Select(obj => obj.ItemId).ToList();
+                                    var idItemId = promotionLineSub.PromotionItemBuy.Where(obj => obj.ItemType == "I")
+                                        .Select(obj => obj.ItemId).ToList();
+                                    var itemss = itemDs.Where(x => idItemId.Contains((int)x.Id)).FirstOrDefault();
+                                    var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                                    Item items = null;
+                                    items = itemDs.Where(x =>
+                                            idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId))
+                                        .FirstOrDefault();
+                                    if (items == null)
+                                    {
+                                        items = itemDs.Where(x => idItemId.Contains((int)x.Id)).FirstOrDefault();
+                                    }
+
+                                    if (items != null)
+                                    {
+                                        Qty = (int)proItem.Quantity;
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.LineId = proItem.LineId;
+                                        prolinesub.ItemId = proItem.ItemId;
+                                        if (items.ItemType.Name.Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                            prolinesub.ItemGroup = "VPKM";
+                                        else
+                                            prolinesub.ItemGroup = "KH";
+                                        prolinesub.ItemCode = items.ItemCode;
+                                        prolinesub.ItemName = items.ItemName;
+                                        prolinesub.PackingId = (int)items.PackingId;
+                                        prolinesub.PackingName = items.Packing.Name;
+                                        while (Qty < promotionLineSub.Quantity && Qty > 0)
+                                        {
+                                            if (promotionLineSub.AddType == "Q")
+                                            {
+                                                prolinesub.QuantityAdd =
+                                                    (int)prolinesub.QuantityAdd.GetValueOrDefault() +
+                                                    promotionLineSub.AddQty;
+                                                Qty = Qty - promotionLineSub.Quantity;
+                                                QtyFlag = QtyFlag + 1;
+                                            }
+                                            else
+                                            {
+                                                int addqty = (Qty / (int)promotionLineSub.AddBuy) *
+                                                             promotionLineSub.AddQty;
+                                                prolinesub.QuantityAdd = addqty +
+                                                                         (int)prolinesub.QuantityAdd
+                                                                             .GetValueOrDefault();
+                                                Qty = Qty - promotionLineSub.Quantity * addqty;
+                                                QtyFlag = QtyFlag + 1;
+                                            }
+
+                                            if (prolinesub.QuantityAdd > 0)
+                                                proItem.Quantity = proItem.Quantity - promotionLineSub.Quantity;
+                                        }
+
+                                        prooderlinesub.Add(prolinesub);
+                                    }
+
+                                    foreach (var subsub in promotionLineSub.PromotionLineSubSub.ToList())
+                                    {
+                                        foreach (var itemadd in subsub.PromotionSubItemAdd)
+                                        {
+                                            PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                            var subitems = _context.Item.AsNoTracking().AsSplitQuery()
+                                                .Where(x => x.Id == itemadd.ItemId)
+                                                .Include(e => e.ItemType)
+                                                .Include(e => e.Packing)
+                                                .FirstOrDefault();
+                                            prolinesub.Cond = subsub.Cond;
+                                            prolinesub.InGroup = subsub.InGroup;
+                                            if (subitems.ItemType.Name.ToUpper().Equals("VẬT PHẨM KHUYẾN MÃI"))
+                                                prolinesub.ItemGroup = "VPKM";
+                                            else
+                                                prolinesub.ItemGroup = "KH";
+                                            prolinesub.ItemId = subitems.Id;
+                                            prolinesub.LineId = proItem.LineId;
+                                            prolinesub.ItemCode = subitems.ItemCode;
+                                            prolinesub.ItemName = subitems.ItemName;
+                                            prolinesub.PackingId = (int)subitems.PackingId;
+                                            prolinesub.PackingName = subitems.Packing.Name;
+                                            prolinesub.QuantityAdd = QtyFlag * subsub.Quantity;
+                                            prooderlinesub.Add(prolinesub);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (proline.SubType == 2)
+                    {
+                        int Flag2 = 0;
+                        if (Flag2 == 0)
+                            promotionParam.PromotionParamLine.ForEach(item => item.Quantity = item.QuantityRef);
+                        if (FlagCust2 > 0)
+                            promotionParam.PromotionParamLine.ForEach(item => item.Quantity = item.QuantityRef);
+                        // Theo số lượng khác loại
+                        bool checkmin = false;
+                        int Qty = 0;
+                        foreach (var promotionLineSub in promotionLineSubs.Where(e => e.IsSameType == true)
+                                     .OrderByDescending(e => e.Quantity).ToList())
+                        {
+                            var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                .Select(obj => obj.ItemId).ToList();
+                            var idunit = promotionLineSub.PromotionUnit.Select(obj => obj.UomId).ToList();
+                            var iditem = promotionParam.PromotionParamLine.Select(obj => obj.ItemId).ToList();
+                            List<Item> items = null;
+                            items = _context.Item
+                                .Include(e => e.Packing)
+                                .Include(e => e.ItemType)
+                                .Where(x => iditem.Contains((int)x.Id)
+                                            && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                            idunit.Contains((int)x.PackingId)
+                                ).ToList();
+                            if (items.Count <= 0)
+                            {
+                                items = _context.Item
+                                    .Include(e => e.Packing)
+                                    .Include(e => e.ItemType)
+                                    .Where(x => iditem.Contains((int)x.Id)
+                                                && idb.Contains((int)x.BrandId) && idI.Contains((int)x.IndustryId)
+                                                && idItemId.Contains((int)x.Id)
+                                    ).ToList();
+                            }
+
+                            if (items.Count == 0)
+                                continue;
+                            var iditemx = items.Select(obj => obj.Id).ToList();
+                            Qty = (int)promotionParam.PromotionParamLine.Where(x => iditemx.Contains((int)x.ItemId))
+                                .Sum(e => e.Quantity);
+                            var listparams = promotionParam.PromotionParamLine
+                                .Where(x => iditemx.Contains((int)x.ItemId) && x.Quantity > 0).ToList();
+                            if (items.Count > 0 && Qty < promotionLineSub.Quantity && checkmin == false)
+                            {
+                                foreach (var param in listparams)
+                                {
+                                    var itemasc = items.FirstOrDefault(x => x.Id == param.ItemId);
+                                    PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                    prolinesub.Cond = "AND";
+                                    prolinesub.InGroup = 0;
+                                    prolinesub.ItemId = itemasc.Id;
+                                    prolinesub.ItemCode = itemasc.ItemCode;
+                                    prolinesub.LineId = param.LineId;
+                                    prolinesub.ItemName = itemasc.ItemName;
+                                    prolinesub.PackingId = (int)itemasc.PackingId;
+                                    prolinesub.PackingName = itemasc.Packing.Name;
+                                    prolinesub.Discount = promotionLineSub.Discount;
+                                    prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                    prolinesub.PriceType = promotionLineSub.PriceType;
+                                    if (prolinesub.Discount > 0)
+                                    {
+                                        param.Quantity = 0;
+                                        prooderlinesub.Add(prolinesub);
+                                        checkmin = true;
+                                        Flag2 = Flag2 + 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Theo số lượng cùng loại
+                        foreach (var proItem in promotionParam.PromotionParamLine.ToList())
+                        {
+                            int QtyAdd = 0;
+                            QtyAdd = (int)proItem.Quantity;
+                            foreach (var promotionLineSub in promotionLineSubs
+                                         .Where(e => e.FollowBy == 1 && e.IsSameType == false)
+                                         .OrderByDescending(e => e.Quantity).ToList())
+                            {
+                                if (QtyAdd < promotionLineSub.Quantity)
+                                {
+                                    var idItemType = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "G")
+                                        .Select(obj => obj.ItemId)
+                                        .ToList();
+                                    var idItemId = promotionLineSub.PromotionItemBuy.Where(e => e.ItemType == "I")
+                                        .Select(obj => obj.ItemId)
+                                        .ToList();
+                                    var idpacking = promotionLineSub.PromotionUnit.Select(obj => obj.UomId)
+                                        .ToList();
+                                    Item itemss = null;
+                                    itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                        .Include(e => e.Packing)
+                                        .Include(e => e.ItemType)
+                                        .Where(x => x.Id == proItem.ItemId
+                                                    && idItemType.Contains((int)x.ItemTypeId) &&
+                                                    idpacking.Contains((int)x.PackingId)
+                                        ).FirstOrDefault();
+                                    if (itemss == null)
+                                    {
+                                        itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                            .Include(e => e.Packing)
+                                            .Include(e => e.ItemType)
+                                            .Where(x => x.Id == proItem.ItemId
+                                                        && idItemId.Contains((int)x.Id)
+                                            ).FirstOrDefault();
+                                    }
+
+                                    if (itemss != null)
+                                    {
+                                        PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                        prolinesub.Cond = "AND";
+                                        prolinesub.InGroup = 0;
+                                        prolinesub.ItemId = itemss.Id;
+                                        prolinesub.LineId = proItem.LineId;
+                                        prolinesub.ItemCode = itemss.ItemCode;
+                                        prolinesub.ItemName = itemss.ItemName;
+                                        prolinesub.PackingId = (int)itemss.PackingId;
+                                        prolinesub.PackingName = itemss.Packing.Name;
+                                        prolinesub.Discount = promotionLineSub.Discount;
+                                        prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                        prolinesub.PriceType = promotionLineSub.PriceType;
+                                        prooderlinesub.Add(prolinesub);
+                                        Flag2 = Flag2 + 1;
+                                        break;
+                                    }
+                                }
+                                else
+                                    continue;
+                            }
+
+                            double Flag = 0;
+                            if (Flag == 0)
+                            {
+                                double totalVolumn = 0;
+                                foreach (var promotionLineSub in promotionLineSubs.Where(e => e.FollowBy == 2).ToList())
+                                {
+                                    if (promotionParam.OrderDate.Date >= promotionLineSub.FromDate.Value.Date &&
+                                        promotionParam.OrderDate.Date <= promotionLineSub.ToDate.Value.Date)
+                                    {
+                                        Item itemss = null;
+                                        foreach (var prLine in promotionParam.PromotionParamLine.ToList())
+                                        {
+                                            var idItemType = promotionLineSub.PromotionItemBuy
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idItemId = promotionLineSub.PromotionItemBuy
+                                                .Where(e => e.ItemType == "I")
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idpacking = promotionLineSub.PromotionUnit
+                                                .Select(obj => obj.UomId).ToList();
+                                            itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                .Include(e => e.Packing)
+                                                .Where(x => x.Id == prLine.ItemId
+                                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                                            idpacking.Contains((int)x.PackingId)
+                                                ).FirstOrDefault();
+                                            if (itemss == null)
+                                            {
+                                                itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                    .Include(e => e.Packing)
+                                                    .Where(x => x.Id == prLine.ItemId
+                                                                && idItemId.Contains((int)x.Id)
+                                                    ).FirstOrDefault();
+                                            }
+
+                                            if (itemss != null)
+                                                totalVolumn = totalVolumn + (double)prLine.Quantity *
+                                                    (double)itemss.Packing.Volumn;
+                                        }
+
+                                        Flag = Flag + 1;
+                                    }
+
+                                    foreach (var prLine in promotionParam.PromotionParamLine.ToList())
+                                    {
+                                        if (totalVolumn >= promotionLineSub.MinVolumn)
+                                        {
+                                            Item itemss = null;
+                                            var idItemType = promotionLineSub.PromotionItemBuy
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idItemId = promotionLineSub.PromotionItemBuy
+                                                .Where(e => e.ItemType == "I")
+                                                .Select(obj => obj.ItemId).ToList();
+                                            var idpacking = promotionLineSub.PromotionUnit
+                                                .Select(obj => obj.UomId).ToList();
+                                            itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                .Include(e => e.Packing)
+                                                .Where(x => x.Id == prLine.ItemId
+                                                            && idItemType.Contains((int)x.ItemTypeId) &&
+                                                            idpacking.Contains((int)x.PackingId)
+                                                ).FirstOrDefault();
+                                            if (itemss == null)
+                                            {
+                                                itemss = _context.Item.AsNoTracking().AsSplitQuery()
+                                                    .Include(e => e.Packing)
+                                                    .Where(x => x.Id == prLine.ItemId
+                                                                && idItemId.Contains((int)x.Id)
+                                                    ).FirstOrDefault();
+                                            }
+
+                                            PromotionOrderLineSub prolinesub = new PromotionOrderLineSub();
+                                            prolinesub.Cond = "AND";
+                                            prolinesub.InGroup = 0;
+                                            prolinesub.ItemId = itemss.Id;
+                                            prolinesub.ItemCode = itemss.ItemCode;
+                                            prolinesub.LineId = prLine.LineId;
+                                            prolinesub.ItemName = itemss.ItemName;
+                                            prolinesub.PackingId = (int)itemss.PackingId;
+                                            prolinesub.PackingName = itemss.Packing.Name;
+                                            prolinesub.Discount = promotionLineSub.Discount;
+                                            prolinesub.DiscountType = promotionLineSub.DiscountType;
+                                            prolinesub.PriceType = promotionLineSub.PriceType;
+                                            prooderlinesub.Add(prolinesub);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    promotionOrderLine.PromotionOrderLineSub = prooderlinesub;
+                    if (promotionOrderLine.PromotionOrderLineSub != null)
+                        prooderline.Add(promotionOrderLine);
+                }
+
+                var prolineA = prooderline.Where(e => e.PromotionOrderLineSub.Count > 0).ToList();
+                promotionOrder.PromotionOrderLine = prolineA;
+                FlagCust = FlagCust + 1;
+                FlagCust2 = FlagCust2 + 1;
+            }
+        }

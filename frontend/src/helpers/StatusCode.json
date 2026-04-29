@@ -1,0 +1,22 @@
+[
+    {
+        "code": 2627,
+        "mes": "Mã đã tồn tại"
+    },
+    {
+        "code": 404,
+        "mes": "Không có bản ghi nào"
+    },
+    {
+        "code": 2067,
+        "mes": "Cấp tổ chức tồn tại trong cơ cấu tổ chức"
+    },
+    {
+        "code": 401,
+        "mes": "Thông tin đăng nhập không chính xác"
+    },
+    {
+        "code": 5001,
+        "mes": "Email không tồn tại"
+    }
+]

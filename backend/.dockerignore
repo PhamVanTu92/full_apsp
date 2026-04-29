@@ -1,0 +1,52 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+# IDE / editor
+*.user
+*.suo
+*.userprefs
+*.swp
+*~
+
+# Source control
+.git/
+.gitignore
+.gitattributes
+
+# Test coverage
+**/TestResults/
+**/coverage.*.xml
+
+# Local dev artifacts
+**/Logs/
+**/uploads/
+**/*.log
+
+# Secrets — KHÔNG ĐƯỢC vào image
+**/appsettings.json
+**/appsettings.Production.json
+**/appsettings.Staging.json
+**/appsettings.Development.json
+**/secrets.json
+
+# Docs / scripts không cần trong image
+docs/
+README.md
+SECURITY.md
+*.md
+.claude/
+.github/
+
+# Node (nếu có)
+**/node_modules/
+**/package-lock.json
+
+# Misc
+*.tmp
+*.bak

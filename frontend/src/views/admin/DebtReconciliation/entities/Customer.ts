@@ -1,0 +1,62 @@
+export interface Customer {
+    id: number | null;
+    series: null;
+    cardCode: string | null;
+    cardName: string | null;
+    frgnName: null;
+    cardType: string | null;
+    licTradNum: string | null;
+    avatar: null;
+    gender: null;
+    dateOfBirth: null;
+    locationId: null;
+    locationName: null;
+    areaId: null;
+    areaName: null;
+    address: null;
+    email: string | null;
+    phone: string | null;
+    person: null;
+    note: null;
+    status: null;
+    rStatus: string | null;
+    portalRegistrationStatus: string | null;
+    createdDate: string | null;
+    creator: null;
+    updatedDate: string | null;
+    updator: null;
+    crD1: Array<any> | null;
+    crD2: Array<any> | null;
+    crD3: Array<any> | null;
+    crD4: Array<any> | null;
+    crD5: Array<any> | null;
+    crD6: Array<any> | null;
+    isAllArea: boolean;
+    area: null;
+    isAllBrand: boolean;
+    brand: null;
+    isAllItemType: boolean;
+    itemType: null;
+    isAllIndustry: boolean;
+    industry: null;
+    isAllPacking: boolean;
+    packing: null;
+    isAllBPArea: boolean;
+    bpArea: null;
+    isAllBPSize: boolean;
+    bpSize: null;
+    userInfo: object | null;
+    classify: Array<any> | null;
+    commiteds: Array<any> | null;
+    currentCommited: null;
+    groups: null;
+    saleId: null;
+    saleStaff: null;
+}
+
+export interface CustomerResponse {
+    items: Array<Customer>;
+    total: number;
+    skip: number;
+    limit: number;
+}

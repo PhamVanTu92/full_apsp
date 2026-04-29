@@ -1,0 +1,181 @@
+:deep(.p-inputtext) {
+    width: 100%;
+}
+
+.line {
+    position: relative;
+}
+
+.line::before,
+.line::after {
+    content: '';
+    position: absolute;
+    width: 5rem;
+    display: block;
+}
+
+.line-w-sm.line::before {
+    width: 3rem;
+    left: -3rem;
+}
+
+.line-w-sm.line::after {
+    width: 3rem;
+    left: -3rem;
+}
+
+.line-w-lg.line::before {
+    width: 5.9rem;
+    left: -5.9rem;
+}
+
+.line-w-lg.line::after {
+    width: 5.9rem;
+    left: -5.9rem;
+}
+
+.line-bottom::before {
+    left: -5rem;
+    top: 50%;
+    bottom: 0;
+    height: calc(50% + 0.5rem);
+    border-left: 1px solid var(--green-800);
+    border-top: 1px solid var(--green-800);
+    border-radius: 0.75rem 0 0 0;
+}
+
+.line-bottom-no-left-before::before {
+    border-left: none !important;
+}
+
+.line-bottom-no-left-after::after {
+    border-left: none !important;
+}
+
+.line-top::before {
+    left: -5rem;
+    bottom: 50%;
+    height: calc(50% + 0.5rem);
+    border-left: 1px solid var(--green-800);
+    border-bottom: 1px solid var(--green-800);
+    border-radius: 0 0 0 0.75rem;
+}
+
+.line-straight::before {
+    left: -5rem;
+    top: 0;
+    height: calc(50% + 10px);
+    margin-top: -10px;
+    border-left: 1px solid var(--green-800);
+    border-bottom: 1px solid var(--green-800);
+}
+
+.line-straight::after {
+    left: -5rem;
+    height: calc(50% + 10px);
+    margin-bottom: -10px;
+    bottom: 0;
+    border-left: 1px solid var(--green-800);
+}
+
+.none-bottom.line-straight::before {
+    border-bottom-left-radius: 0.75rem;
+}
+
+.none-bottom.line-straight::after {
+    display: none !important;
+}
+
+.none-bottom.line-bottom::before {
+    border-left: none !important;
+}
+
+.dash_bottom.line-bottom::before {
+    border-left: 1px dashed var(--green-800) !important;
+    border-top: 1px dashed var(--green-800) !important;
+}
+
+.dash_top.line-straight::before {
+    border-left: 1px dashed var(--green-800) !important;
+    border-bottom: 1px dashed var(--green-800) !important;
+}
+
+.dash_bottom.line-straight::after {
+    border-left: 1px dashed var(--green-800) !important;
+    /* border-bottom: 1px dashed var(--green-800) !important; */
+}
+
+.dash::before {
+    border-left: 1px dashed var(--green-800) !important;
+}
+
+.dash::after {
+    border-top: 1px dashed var(--green-800) !important;
+}
+
+.dash.line-last::before {
+    border-bottom: 1px dashed var(--green-800) !important;
+    border-left: 1px dashed var(--green-800) !important;
+}
+
+.line-full,
+.line-last {
+    margin-left: 120px;
+    position: relative;
+    margin-top: 10px !important;
+    margin-bottom: 0px !important;
+}
+
+.line-full::after,
+.line-full::before,
+.line-last::before {
+    left: -70px;
+}
+
+.line-full::before {
+    position: absolute;
+    top: -10px;
+    content: '';
+    display: block;
+    height: calc(100% + 15px);
+    /* width: 1px; */
+    /* background: var(--green-800); */
+    border-left: 1px solid var(--green-800);
+    z-index: 100;
+}
+
+.line-full::after {
+    content: '';
+    position: absolute;
+    display: block;
+    top: 50%;
+    height: 50%;
+    width: 70px;
+    border-top: 1px solid var(--green-800);
+    z-index: 100;
+}
+
+.tf-y-50 {
+    transform: translateY(25px);
+}
+
+.line-last::before {
+    content: '';
+    position: absolute;
+    display: block;
+    top: -10px;
+    height: 70%;
+    width: 69px;
+    border-radius: 0 0 0 0.75rem;
+    border-bottom: 1px solid var(--green-800);
+    border-left: 1px solid var(--green-800);
+    z-index: 100;
+}
+
+:deep(.p-selectbutton .p-button.p-highlight::before) {
+    background-color: green !important; 
+}
+
+:deep(.p-selectbutton .p-button.p-highlight span) { 
+    color: white !important;
+}

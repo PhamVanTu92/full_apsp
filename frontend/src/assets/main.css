@@ -1,0 +1,119 @@
+/* color */
+
+.green-bg {
+    background-color: #0d733b;
+}
+
+.yellow-text {
+    color: #f2ee1b;
+}
+
+.gray-color {
+    color: #adb7bc;
+}
+
+.gray-color-2 {
+    color: #5f6c72;
+}
+
+.gray-color-3 {
+    color: #77878f;
+}
+
+.gray-color-4 {
+    color: #475156;
+}
+
+.blue-color {
+    color: #2da5f3;
+}
+
+.yellow-color {
+    color: #f2ee1b;
+}
+
+.orange-color {
+    color: #ffe7d6;
+}
+
+.orange-color {
+    color: #fa8232;
+}
+
+.orange-color-bg {
+    background: #fa8232;
+}
+.size-46px {
+    font-size: 46px;
+}
+
+.size-32px {
+    font-size: 32px;
+}
+
+.size-24px {
+    font-size: 24px;
+}
+
+.size-18px {
+    font-size: 18px;
+}
+
+.size-16px {
+    font-size: 16px;
+}
+
+.size-12px {
+    font-size: 12px;
+}
+
+.container {
+    width: 1325px;
+}
+
+hr.style-six {
+    border: 0;
+    height: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.link {
+    color: #e2e8f0;
+}
+
+.link:hover {
+    color: #fdef2e;
+}
+
+.content-container {
+    width: 100%;
+}
+/* 
+@media screen and (max-width: 1439px) {
+    .content-container {
+        width: 1104px;
+    }
+}*/
+@media only screen and (min-width: 576px) {
+    .content-container {
+        width: 100%;
+    }
+}
+@media screen and (min-width: 1440px) and (max-width: 1551px) {
+    .content-container {
+        width: 1264px;
+    }
+}
+@media screen and (min-width: 1552px) and (max-width: 1791px) {
+    .content-container {
+        width: 1376px;
+    }
+}
+@media only screen and (min-width: 1792px) {
+    .content-container {
+        width: 1616px;
+    }
+} 

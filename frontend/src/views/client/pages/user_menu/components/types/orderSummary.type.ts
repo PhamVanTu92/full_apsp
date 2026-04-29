@@ -1,0 +1,19 @@
+export class OrderSummary {
+    id: number = 0;
+    docId: number = 0;
+    vatAmount: number = 0;
+    paynowVATAmount: number = 0;
+    debtVATAmount: number = 0;
+    debtGuaranteeVATAmount: number = 0;
+    bonusCommited: number = 0;
+    totalBeforeVat: number = 0;
+    totalPayNowBeforeVat: number = 0;
+    totalDebtBeforeVat: number = 0;
+    totalDebtGuaranteeBeforeVat: number = 0;
+    totalAfterVat: number = 0;
+    bonusPercent: number = 0;
+    bonusAmount: number = 0;
+    totalPayNow: number = 0;
+    totalDebt: number = 0;
+    totalDebtGuarantee: number = 0;
+}

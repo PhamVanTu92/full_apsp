@@ -1,0 +1,103 @@
+[
+    {
+        "key": "1",
+        "id": 1,
+        "code": "SGP",
+        "name": "Sài Gòn Petro",
+        "label": "Sài Gòn Petro",
+        "fatherId": 0,
+        "employees": [],
+        "status": true,
+        "children": [
+            {
+                "key": "2",
+                "id": 2,
+                "code": "SGP-BGD",
+                "name": "Ban giám đốc",
+                "label": "Ban giám đốc",
+                "fatherId": 1,
+                "children": [],
+                "employees": [],
+                "status": true
+            },
+            {
+                "key": "3",
+                "id": 3,
+                "code": "SGP-PKD",
+                "name": "Phòng Kinh Doanh",
+                "label": "Phòng Kinh Doanh",
+                "fatherId": 1,
+                "children": [
+                    {
+                        "key": "5",
+                        "id": 5,
+                        "code": "SGP-PKD-PXNK",
+                        "name": "Phòng Xuất Nhập Khẩu",
+                        "label": "Phòng Xuất Nhập Khẩu",
+                        "fatherId": 3,
+                        "children": [],
+                        "employees": [],
+                        "status": true
+                    },
+                    {
+                        "key": "6",
+                        "id": 6,
+                        "code": "SGP-PKD-PKDMB",
+                        "name": "Phòng Kinh Doanh Miền Bắc",
+                        "label": "Phòng Kinh Doanh Miền Bắc",
+                        "fatherId": 3,
+                        "children": [],
+                        "employees": [],
+                        "status": true
+                    },
+                    {
+                        "key": "7",
+                        "id": 7,
+                        "code": "SGP-PKD-PKDMN",
+                        "name": "Phòng Kinh Doanh Miền Nam",
+                        "label": "Phòng Kinh Doanh Miền Nam",
+                        "fatherId": 3,
+                        "children": [],
+                        "employees": [],
+                        "status": true
+                    }
+                ],
+                "employees": [],
+                "status": true
+            },
+            {
+                "key": "4",
+                "id": 4,
+                "code": "SGP-PKT",
+                "name": "Phòng Kế Toán",
+                "label": "Phòng Kế Toán",
+                "fatherId": 1,
+                "children": [],
+                "employees": [],
+                "status": true
+            },
+            {
+                "key": "8",
+                "id": 8,
+                "code": "SGP-DVCSKH",
+                "name": "Phòng DVCSKH",
+                "label": "Phòng DVCSKH",
+                "fatherId": 1,
+                "children": [],
+                "employees": [],
+                "status": true
+            },
+            {
+                "key": "9",
+                "id": 9,
+                "code": "SGP-W",
+                "name": "Kho",
+                "label": "Kho",
+                "fatherId": 1,
+                "children": [],
+                "employees": [],
+                "status": true
+            }
+        ]
+    }
+]
