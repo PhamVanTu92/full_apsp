@@ -23,7 +23,6 @@ namespace BackEndAPI.Controllers
             _hostingEnvironment = hostingEnvironment;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("add")]
         [PrivilegeRequirement("ApprovalTemplate.Create")]
@@ -51,7 +50,6 @@ namespace BackEndAPI.Controllers
             }
             return Ok(items);
         }
-        [AllowAnonymous]
         [HttpPut("{id}")]
         [PrivilegeRequirement("ApprovalTemplate.Update")]
         public async Task<IActionResult> update(int id, OWTM model)
@@ -74,7 +72,6 @@ namespace BackEndAPI.Controllers
             }
             return Ok(items);
         }
-        [AllowAnonymous]
         [HttpGet("{id}")]
         [PrivilegeRequirement("ApprovalTemplate.View")]
         public async Task<IActionResult> getById(int id)
@@ -90,7 +87,6 @@ namespace BackEndAPI.Controllers
             }
             return Ok(items);
         }
-        [AllowAnonymous]
         [HttpGet("getall")]
         [PrivilegeRequirement("ApprovalTemplate.View")]
         public async Task<IActionResult> GetAllWithPagination([FromQuery] GridifyQuery q,int skip = 0, int limit = 30)
@@ -109,7 +105,6 @@ namespace BackEndAPI.Controllers
             return Ok(new { items, total, skip, limit });
         }
 
-        [AllowAnonymous]
         [HttpDelete("{id}")]
         [PrivilegeRequirement("ApprovalTemplate.Delete")]
         public async Task<IActionResult> Delete(int id)
