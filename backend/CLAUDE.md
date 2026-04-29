@@ -60,6 +60,69 @@ BackEndAPI/
 - **LUÔN** dùng `async/await` — không dùng `.Result` hay `.Wait()`
 - **LUÔN** tạo DTO tách biệt với Entity — không expose Entity trực tiếp
 
+## Quản lý secrets
+
+`appsettings.json` đã được liệt kê trong `backend/.gitignore` → file local
+của dev không bao giờ được commit. Template phiên bản hoá là
+`appsettings.example.json` (chứa placeholder `__XXX__`).
+
+`BackEndAPI.csproj` đã khai báo sẵn `UserSecretsId`, nên User Secrets
+storage có thể dùng ngay không cần cấu hình thêm.
+
+### Local dev — dùng User Secrets
+
+```bash
+cd backend/BackEndAPI
+
+# Khởi tạo (chỉ cần lần đầu nếu UserSecretsId chưa có; ở repo này đã có sẵn)
+dotnet user-secrets init
+
+# Set giá trị — ASP.NET Core sẽ override appsettings.json khi đọc
+# IConfiguration. Dùng dấu : để chỉ section lồng nhau.
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<encrypted>"
+dotnet user-secrets set "Jwt:Key"             "<base64-key>"
+dotnet user-secrets set "SmtpSettings:Password" "<smtp-pwd>"
+dotnet user-secrets set "ZaloTokenConfig:RefreshToken" "<zalo-token>"
+dotnet user-secrets set "SAPServiceLayer:CompanyDB" "<encrypted>"
+dotnet user-secrets set "SAPServiceLayer:Username"  "<encrypted>"
+dotnet user-secrets set "SAPServiceLayer:Password"  "<encrypted>"
+
+# Xem các key đang lưu
+dotnet user-secrets list
+
+# Xoá 1 key
+dotnet user-secrets remove "Jwt:Key"
+```
+
+User Secrets được lưu ở
+`%APPDATA%\Microsoft\UserSecrets\<UserSecretsId>\secrets.json` (Windows)
+hoặc `~/.microsoft/usersecrets/<UserSecretsId>/secrets.json` (Linux/Mac)
+— không bao giờ nằm trong repo.
+
+### Staging / Production — environment variable
+
+ASP.NET Core map env var thành config key bằng `__` (double underscore).
+Ví dụ trong `docker-compose.yml` hoặc systemd service:
+
+```bash
+ConnectionStrings__DefaultConnection=...
+Jwt__Key=...
+SmtpSettings__Password=...
+SAPServiceLayer__CompanyDB=...
+```
+
+Hoặc tốt hơn: dùng Azure Key Vault / Vault provider — nạp vào
+`builder.Configuration.AddAzureKeyVault(...)` ở `Program.cs`.
+
+### Quy tắc
+
+- **KHÔNG** commit `appsettings.json`, `appsettings.Production.json`,
+  `appsettings.Staging.json`, hay file `.env` chứa giá trị thật.
+- **KHÔNG** log giá trị `IConfiguration` tự do — có thể leak secret.
+- **KHÔNG** đặt secret vào tham số dòng lệnh (lưu trong shell history).
+- Khi onboard dev mới: gửi secret qua kênh bảo mật (1Password, Bitwarden,
+  KeePass), KHÔNG qua chat/email/Slack chung.
+
 ## Thứ tự đọc code khi onboard
 
 1. `Program.cs` — hiểu DI và middleware pipeline

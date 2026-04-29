@@ -26,7 +26,6 @@ namespace BackEndAPI.Controllers
             _mapper = mapper;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [PrivilegeRequirement("Payment")]
         public async Task<IActionResult> CreatePayment(PaymentDto model)
@@ -53,7 +52,6 @@ namespace BackEndAPI.Controllers
             return Ok(bank);
         }
 
-        [AllowAnonymous]
         [HttpGet("{id}")]
         [PrivilegeRequirement("Payment")]
         public async Task<IActionResult> getById(int id)

@@ -138,9 +138,17 @@ namespace BackEndAPI.Service.Document
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 UseCookies = true,
-                CookieContainer = new CookieContainer(),
-                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                CookieContainer = new CookieContainer()
             };
+
+            // TLS cert bypass cho SAP B1 self-signed cert — chỉ kích hoạt khi
+            // TlsBypass.IsEnabled (Development hoặc env var ALLOW_SELF_SIGNED_TLS=true).
+            // Production: callback null → .NET validate cert nghiêm ngặt như mặc định.
+            if (BackEndAPI.Service.Sync.Security.TlsBypass.IsEnabled)
+            {
+                handler.ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            }
 
             _http = new HttpClient(handler)
             {

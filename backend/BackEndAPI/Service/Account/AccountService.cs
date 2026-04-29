@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Mail;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Transactions;
 using BackEndAPI.Service.BusinessPartners;
@@ -128,26 +129,31 @@ namespace BackEndAPI.Service.Account
             // Tạo chuỗi chứa tất cả ký tự có thể sử dụng
             string allChars = lowerCase + upperCase + digits + specialChars;
 
-            // Tạo đối tượng Random để sinh số ngẫu nhiên
-            Random rand = new Random();
-
             // Dùng StringBuilder để xây dựng mật khẩu
             StringBuilder password = new StringBuilder();
 
-            // Đảm bảo có ít nhất một ký tự thuộc mỗi loại
-            password.Append(lowerCase[rand.Next(lowerCase.Length)]);
-            password.Append(upperCase[rand.Next(upperCase.Length)]);
-            password.Append(digits[rand.Next(digits.Length)]);
-            password.Append(specialChars[rand.Next(specialChars.Length)]);
+            // Đảm bảo có ít nhất một ký tự thuộc mỗi loại — sử dụng RandomNumberGenerator
+            // (cryptographically secure) thay vì System.Random để tránh tấn công đoán seed.
+            password.Append(lowerCase[RandomNumberGenerator.GetInt32(lowerCase.Length)]);
+            password.Append(upperCase[RandomNumberGenerator.GetInt32(upperCase.Length)]);
+            password.Append(digits[RandomNumberGenerator.GetInt32(digits.Length)]);
+            password.Append(specialChars[RandomNumberGenerator.GetInt32(specialChars.Length)]);
 
             // Tạo các ký tự còn lại trong mật khẩu (nếu cần)
             for (int i = password.Length; i < length; i++)
             {
-                password.Append(allChars[rand.Next(allChars.Length)]);
+                password.Append(allChars[RandomNumberGenerator.GetInt32(allChars.Length)]);
             }
 
-            // Chuyển mật khẩu thành chuỗi và trả về
-            return password.ToString();
+            // Shuffle để vị trí của 4 ký tự "bắt buộc" không cố định ở 4 vị trí đầu
+            // (giảm bớt thông tin attacker biết trước về cấu trúc password).
+            var chars = password.ToString().ToCharArray();
+            for (int i = chars.Length - 1; i > 0; i--)
+            {
+                int j = RandomNumberGenerator.GetInt32(i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+            return new string(chars);
         }
 
 
