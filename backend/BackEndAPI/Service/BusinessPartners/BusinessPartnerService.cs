@@ -1376,6 +1376,18 @@ namespace BackEndAPI.Service.BusinessPartners
             => _addressService.RemoveAsync(bpId, addressIds);
 
 
+        // Whitelist các loại tệp được phép upload làm đính kèm hồ sơ khách hàng.
+        // Bất kỳ extension không nằm trong danh sách sẽ bị từ chối.
+        private static readonly HashSet<string> _allowedAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp",
+            ".txt", ".csv"
+        };
+
+        // Giới hạn kích thước mỗi file để tránh DoS qua disk-fill.
+        private const long _maxAttachmentSize = 20L * 1024 * 1024; // 20 MB
+
         public async Task<(BP?, Mess?)> AddFiles(int bpId, int userId, List<IFormFile> files, string[] notes)
         {
             var mess = new Mess();
@@ -1393,7 +1405,26 @@ namespace BackEndAPI.Service.BusinessPartners
                 {
                     if (file.Length > 0)
                     {
-                        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                        // Validate size — từ chối file quá lớn trước khi đọc xuống đĩa.
+                        if (file.Length > _maxAttachmentSize)
+                        {
+                            mess.Status = 400;
+                            mess.Errors = $"File '{file.FileName}' vượt quá giới hạn {_maxAttachmentSize / (1024 * 1024)} MB.";
+                            await trans.RollbackAsync();
+                            return (null, mess);
+                        }
+
+                        // Validate extension — chỉ chấp nhận các loại trong whitelist.
+                        var extension = Path.GetExtension(file.FileName);
+                        if (string.IsNullOrEmpty(extension) || !_allowedAttachmentExtensions.Contains(extension))
+                        {
+                            mess.Status = 400;
+                            mess.Errors = $"Định dạng tệp '{extension}' không được phép. Chỉ chấp nhận: {string.Join(", ", _allowedAttachmentExtensions)}.";
+                            await trans.RollbackAsync();
+                            return (null, mess);
+                        }
+
+                        var fileName = Guid.NewGuid().ToString() + extension;
                         var filePath = Path.Combine(uploadsFolder, fileName);
 
                         using (var fileStream = new FileStream(filePath, FileMode.Create))
