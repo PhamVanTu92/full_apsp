@@ -631,8 +631,8 @@ namespace BackEndAPI.Service.Account
                     return (null, null, mes);
                 }
 
-                var check = _userManager.CheckPasswordAsync(user, login.Password);
-                if (check.Result != true)
+                var passwordValid = await _userManager.CheckPasswordAsync(user, login.Password);
+                if (!passwordValid)
                 {
                     mes.Status = 400;
                     mes.Errors = "Người dùng hoặc mật khẩu không đúng";
