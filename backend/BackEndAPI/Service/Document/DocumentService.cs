@@ -7289,7 +7289,7 @@ namespace BackEndAPI.Service.Document
                     if(approval.Count > 0)
                     {
                         _context.Approval.AddRange(approval);
-                        _context.SaveChanges();
+                        await _context.SaveChangesAsync();
                         foreach (var item in approval)
                         {
                             var sendUsers = item.Lines.Select(p => p.UserId).ToList();

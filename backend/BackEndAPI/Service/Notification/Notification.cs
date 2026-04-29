@@ -21,12 +21,15 @@ public class Notification
         _webSocketService = webSocketService;
     }
 
-    private void CreateNotification(Models.NotificationModels.Notification noti)
+    // async void được phép cho event handler (đăng ký qua IEventAggregator.Subscribe<T>(Action<T>)
+    // ở constructor). Try/catch nội bộ giữ exception không thoát ra khỏi handler — bắt buộc với
+    // async void để không crash process.
+    private async void CreateNotification(Models.NotificationModels.Notification noti)
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        using var trans = context.Database.BeginTransaction();
+        await using var trans = await context.Database.BeginTransactionAsync();
         try
         {
             var userId = noti.SendUsers.Select(p => p.ToString()).ToList();
@@ -43,14 +46,14 @@ public class Notification
             }
 
             context.Notifications.Add(noti);
-            context.SaveChanges();
+            await context.SaveChangesAsync();
 
-            trans.Commit();
+            await trans.CommitAsync();
             _ = _webSocketService.SendMessageToUsers(userId, noti);
         }
         catch
         {
-            trans.Rollback();
+            await trans.RollbackAsync();
         }
     }
 
