@@ -15,6 +15,9 @@ public abstract class BaseWorkFlowEngineService : IApprovalWorkFlowEngine
     public abstract Task<bool> HandleAftherDeclineAsync(Models.Approval_V2.ApprovalWorkFlow approvalWorkFlow);
 
     public abstract Task<object?> GetEntityAsync(int docId);
+
+    public abstract Task<Dictionary<int, object?>> GetEntitiesAsync(IReadOnlyCollection<int> docIds);
+
     public abstract Task<string>  GetDocStatus(int docId);
 
     public Task<List<Models.Approval_V2.ApprovalWorkFlow>> CreateApprovalWorkFlow(List<IdAndTypeDocDto> documentIds,

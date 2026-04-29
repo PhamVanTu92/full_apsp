@@ -19,5 +19,14 @@ public interface IApprovalWorkFlowEngine
 
     Task<object?> GetEntityAsync(int docId);
 
+    /// <summary>
+    /// Batch variant of <see cref="GetEntityAsync"/> — returns a map from
+    /// docId to entity for a set of ids. Used by callers that would
+    /// otherwise produce N+1 queries (one round-trip per row of a paged
+    /// list). Implementations should issue a single query with WHERE Id IN
+    /// (...) and return only ids that were found.
+    /// </summary>
+    Task<Dictionary<int, object?>> GetEntitiesAsync(IReadOnlyCollection<int> docIds);
+
     Task<string> GetDocStatus(int docId);
 }
