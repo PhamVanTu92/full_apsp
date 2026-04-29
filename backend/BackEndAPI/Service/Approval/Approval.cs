@@ -98,17 +98,20 @@ public class Approval : Service<IApproval>
             #endregion
 
 
-            var apts = context.WTM2
-                .Include(a => a.OWST)
-                .ThenInclude(b => b!.WST1)
-                .Include(d => d.OWTM)
-                .ThenInclude(d => d.RUsers)
-                .Where(a => a.OWTM.Active)
-                .Where(c => c.Sort == 1)
-                .ToList();
-
-            var apt = apts.FirstOrDefault(e =>
-                e.OWTM.RUsers.Any(p => p.Id == approval.ActorId.Value) && e.OWTM.RUsers.Count != 0);
+            // Push the actor-membership filter into SQL instead of loading every active 'WTM2' row
+            // and then filtering in memory. The .Count != 0 check was redundant — Any(p => p.Id == X)
+            // already implies Count > 0. Guarded by ActorId.HasValue to avoid an InvalidOperationException
+            // on .Value when ActorId is null (the original code threw before reaching the null-check below).
+            var apt = approval.ActorId.HasValue
+                ? await context.WTM2.AsNoTracking()
+                    .Include(a => a.OWST)
+                    .ThenInclude(b => b!.WST1)
+                    .Include(d => d.OWTM)
+                    .ThenInclude(d => d.RUsers)
+                    .Where(a => a.OWTM.Active && a.Sort == 1)
+                    .Where(e => e.OWTM.RUsers.Any(p => p.Id == approval.ActorId.Value))
+                    .FirstOrDefaultAsync()
+                : null;
 
             if (approval.ActorId == null || apt is null)
             {
