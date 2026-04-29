@@ -45,9 +45,22 @@ chỉ siết auth + validation).
 
 ### Lưu ý cho lần sau
 
-**C-1 hardcoded secrets — chưa fix, cần user quyết định:**
+**C-1 hardcoded secrets — đã chọn phương án A (an toàn):**
 
-Khi điều tra phát hiện situation khác với mô tả trong BACKEND_REVIEW:
+- `.gitignore` đã được verify — `git check-ignore backend/BackEndAPI/appsettings.json` trả đúng path → file local không được track.
+- `BackEndAPI.csproj` đã khai báo `UserSecretsId` sẵn → User Secrets dùng được ngay.
+- Đã thêm section "Quản lý secrets" vào `backend/CLAUDE.md` với workflow `dotnet user-secrets ...` cho dev và `__` env var pattern cho prod.
+- **Không** chạm `appsettings.json` (giữ nguyên dev environment hoạt động).
+- File local của dev vẫn chứa secret thật — dev chịu trách nhiệm migrate dần sang User Secrets nếu muốn (workflow đã có doc).
+
+Phương án B/C (replace placeholder + rotate) bị từ chối vì secret chưa từng vào git history → không có incident phải xử lý gấp.
+
+**Trade-off cho các fix khác đã được user confirm:**
+- C-3: behavioral change — endpoints Approval Template / Payment giờ bắt buộc JWT.
+- C-5: prod cần CA hợp lệ cho SAP B1 (hoặc set `ALLOW_SELF_SIGNED_TLS=true` cho staging).
+- H-2: rollback transaction nếu file invalid trong batch.
+
+**Khi điều tra C-1, phát hiện situation khác mô tả trong BACKEND_REVIEW:**
 
 - `backend/BackEndAPI/appsettings.json` **đã được gitignore** (`backend/.gitignore` line 8).
 - `git ls-files` không trả về file này → file local nhưng **không track**.
