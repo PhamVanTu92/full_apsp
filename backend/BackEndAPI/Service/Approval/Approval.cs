@@ -19,7 +19,9 @@ public class Approval : Service<IApproval>
         base(context)
     {
         _context = context;
-        eventAggregator.Subscribe<Models.Approval.Approval>(CreateApproval);
+        // No publishers exist for Models.Approval.Approval — the previous
+        // Subscribe call here was dead code. CreateApprovalAsync is now invoked
+        // directly from ActionApproval.
         _eventAggregator = eventAggregator;
         _serviceProvider = serviceProvider;
         _systemLog       = systemLog;
@@ -56,7 +58,7 @@ public class Approval : Service<IApproval>
             Document  = doc,
         };
         doc.Status = "DXL";
-        CreateApproval(app);
+        await CreateApprovalAsync(app);
 
         //if (app.Id == 0)
         //{
@@ -71,12 +73,12 @@ public class Approval : Service<IApproval>
         return (app, null);
     }
 
-    private void CreateApproval(Models.Approval.Approval approval)
+    private async Task CreateApprovalAsync(Models.Approval.Approval approval)
     {
         using var scope   = _serviceProvider.CreateScope();
         var       context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        using var trans = context.Database.BeginTransaction();
+        await using var trans = await context.Database.BeginTransactionAsync();
         try
         {
             #region Check Credit
@@ -132,8 +134,8 @@ public class Approval : Service<IApproval>
 
             approval.Document = null;
             context.Approval.Add(approval);
-            context.SaveChanges();
-            trans.Commit();
+            await context.SaveChangesAsync();
+            await trans.CommitAsync();
 
 
             if (apt?.OWST?.WST1 != null)
@@ -170,7 +172,7 @@ public class Approval : Service<IApproval>
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
-            trans.Rollback();
+            await trans.RollbackAsync();
         }
     }
 

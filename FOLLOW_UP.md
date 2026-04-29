@@ -41,38 +41,19 @@ ApprovalTemplateController, PaymentController, CustomerController còn dùng
 errors phẳng. Out of scope cho prompt security; nằm trong nhóm cải thiện
 error format INTEGRATION_REVIEW I-4.1.
 
-## 5. Async — `Approval.cs:CreateApproval` dual-usage method
+## 5. Async — `Approval.cs:CreateApproval` dual-usage method ✅ DONE
 
-Ghi nhận trong branch `refactor/async-await-fixes` (2026-04-29).
+Đã giải quyết trong branch `refactor/async-await-fixes` (2026-04-29) qua Option C:
 
-`Service/Approval/Approval.cs:74` định nghĩa `private void CreateApproval(...)`
-được dùng theo HAI cách:
-
-1. **Event handler** — đăng ký `eventAggregator.Subscribe<...>(CreateApproval)`
-   ở constructor (line 22). `IEventAggregator.Subscribe` chỉ nhận
-   `Action<TEvent>` → handler buộc phải `void`.
-2. **Direct sync call** — `ActionApproval` (line 28) gọi `CreateApproval(app)`
-   ở line 59, sau đó dùng `app` đã mutate để tiếp tục flow rồi
-   `await _context.SaveChangesAsync()` ở line 68.
-
-Method còn chứa `context.SaveChanges()` đồng bộ ở line 135 (BACKEND_REVIEW H-11).
-
-Để fix đúng cần một trong:
-- **Option A:** Mở rộng `IEventAggregator` để hỗ trợ `Func<TEvent, Task>`
-  → public API change của internal event pattern. Tất cả `Subscribe` callsite
-  phải audit.
-- **Option B:** Tách logic thành `private async Task CreateApprovalCoreAsync(...)`
-  + giữ `private void CreateApproval(...)` làm wrapper sync chỉ cho event
-  aggregator (gọi `.GetAwaiter().GetResult()` hoặc `Task.Run` — vẫn blocking).
-- **Option C:** Bỏ subscription event-aggregator, chỉ giữ direct call (kiểm tra
-  có ai publish event này không).
-
-Cùng vấn đề ở `Service/Notification/Notification.cs:24` `CreateNotification`
-trước đây — đã chuyển sang `async void` (cho phép theo rule #4 cho event handler)
-trong branch hiện tại. Approval thì không dùng pattern này được vì còn caller
-direct đang dựa vào side-effect đồng bộ.
-
-Cần user quyết định option trước khi refactor.
+- Verify `grep "_eventAggregator.Publish.*Approval"` → 0 publishers cho
+  `Models.Approval.Approval` → subscription là dead code.
+- Xoá `eventAggregator.Subscribe<Models.Approval.Approval>(CreateApproval)` ở
+  constructor.
+- Đổi `private void CreateApproval` → `private async Task CreateApprovalAsync`,
+  chuyển transaction + SaveChanges + Rollback sang async overload.
+- Sửa caller `ActionApproval` line 59: `CreateApproval(app)` →
+  `await CreateApprovalAsync(app)`.
+- Không đổi public API.
 
 ## 6. Async — CancellationToken propagation toàn hệ thống
 
