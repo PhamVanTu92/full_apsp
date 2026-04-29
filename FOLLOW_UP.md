@@ -83,27 +83,21 @@ hợp nhồi vào prompt async fix lẻ.
 3 sprint con (controllers, top services, EF leaf). Hoặc bắt đầu enforce qua
 analyzer rule `CA2016` (Forward CancellationToken) cho code mới.
 
-## 8. EF perf — H-5 ApprovalWorkFlow N+1 (cần đổi interface)
+## 8. EF perf — H-5 ApprovalWorkFlow N+1 ✅ DONE
 
-Ghi nhận trong branch `refactor/ef-query-optimization` (2026-04-29).
+Đã giải quyết trong branch `refactor/approval-engine-batch` (2026-04-29).
 
-`Service/Approval_V2/ApprovalWorkFlow/Service/ApprovalWorkFlowService.cs:46-55`
-chạy N+1: sau khi `ToListAsync()` lấy danh sách workflow, foreach gọi
-`engine.GetEntityAsync(docId)` cho từng row → 1 query/row.
-
-`IApprovalWorkFlowEngine` (line 8 trong `Engine/IApprovalWorkFlowEngine.cs`)
-hiện chỉ có `Task<object?> GetEntityAsync(int docId)`. Để batch cần thêm:
-```csharp
-Task<Dictionary<int, object>> GetEntitiesAsync(IEnumerable<int> docIds);
-```
-
-Phải implement ở 3 engine: `PurchaseOrderWorkFlow`, `RequestPickUpItemsWorkFlow`,
-`PurchaseReturnWorkFlow`. **Là public API change** (interface mở rộng) → cần
-user duyệt trước khi làm.
-
-Workaround tạm thời cho hot path: cache result theo `DocId` trong scope của
-request (e.g., `IMemoryCache` với key short TTL). Nhưng workaround không giảm
-N+1, chỉ đỡ khi cùng pagination được yêu cầu lặp.
+- Thêm `Task<Dictionary<int, object?>> GetEntitiesAsync(IReadOnlyCollection<int>)`
+  vào `IApprovalWorkFlowEngine` + abstract trong `BaseWorkFlowEngineService`.
+- 3 engine (`PurchaseOrderWorkFlow`, `RequestPickUpItemsWorkFlow`,
+  `PurchaseReturnWorkFlow`) override với single `WHERE Id IN (...)` query
+  trên `context.ODOC` + `AsNoTracking()`.
+- `ApprovalWorkFlowService.GetAllAsync` group rows theo `DocumentType`, gọi
+  batch 1 lần per group → N+1 → ~1-3 query (theo số DocumentType khác nhau
+  trong page).
+- **Public API change**: interface mở rộng (thêm method mới) — caller bên
+  ngoài implement `IApprovalWorkFlowEngine` (nếu có) phải implement thêm
+  method này. Trong codebase chỉ 3 implementation đều đã update.
 
 ## 9. EF perf — đề xuất thêm index để hỗ trợ filter/join hot path
 

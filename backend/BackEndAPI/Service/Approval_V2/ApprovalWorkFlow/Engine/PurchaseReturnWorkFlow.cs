@@ -56,6 +56,16 @@ public class PurchaseReturnWorkFlow(IHttpContextAccessor httpContextAccessor, Ap
         return result;
     }
 
+    // Batch sibling of GetEntityAsync — single query with WHERE Id IN (...) instead of N round-trips.
+    public override async Task<Dictionary<int, object?>> GetEntitiesAsync(IReadOnlyCollection<int> docIds)
+    {
+        if (docIds.Count == 0) return new Dictionary<int, object?>();
+        var rows = await context.ODOC.AsNoTracking()
+            .Where(x => docIds.Contains(x.Id))
+            .ToListAsync();
+        return rows.ToDictionary(x => x.Id, x => (object?)x);
+    }
+
     public override async Task<string> GetDocStatus(int docId)
     {
         var result = await context.ODOC.FirstOrDefaultAsync(x => x.Id == docId);

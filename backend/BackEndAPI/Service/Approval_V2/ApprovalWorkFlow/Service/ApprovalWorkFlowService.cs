@@ -43,14 +43,29 @@ public class ApprovalWorkFlowService
             .Include(x => x.ApprovalWorkFlowDocumentLines)
             .ApplyOrdering(gridifyQuery).ApplyPaging(gridifyQuery).ToListAsync();
 
-        foreach (var res in result)
+        // H-5 fix: was 1 query per row (foreach engine.GetEntityAsync). Now group rows by
+        // DocumentType and issue 1 batch query per distinct type via GetEntitiesAsync —
+        // typically 1-3 queries total instead of N (page size).
+        var rowsWithLines = result
+            .Where(r => r.ApprovalWorkFlowDocumentLines.Any())
+            .ToList();
+
+        var groupsByType = rowsWithLines.GroupBy(r => r.ApprovalWorkFlowDocumentLines[0].DocumentType);
+
+        foreach (var group in groupsByType)
         {
-            var engine =
-                _approvalWorkFlowFactory.GetEngine(res.ApprovalWorkFlowDocumentLines.FirstOrDefault()!.DocumentType);
-            var item = await engine.GetEntityAsync(res.ApprovalWorkFlowDocumentLines[0].DocId);
-            if (item is not null)
+            var engine = _approvalWorkFlowFactory.GetEngine(group.Key);
+            var docIds = group.Select(r => r.ApprovalWorkFlowDocumentLines[0].DocId)
+                              .Distinct()
+                              .ToList();
+            var entitiesById = await engine.GetEntitiesAsync(docIds);
+            foreach (var res in group)
             {
-                res.ApprovalWorkFlowDocumentLines[0].DocObj = item;
+                if (entitiesById.TryGetValue(res.ApprovalWorkFlowDocumentLines[0].DocId, out var item)
+                    && item is not null)
+                {
+                    res.ApprovalWorkFlowDocumentLines[0].DocObj = item;
+                }
             }
         }
 
