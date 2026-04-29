@@ -99,7 +99,36 @@ analyzer rule `CA2016` (Forward CancellationToken) cho code mới.
   ngoài implement `IApprovalWorkFlowEngine` (nếu có) phải implement thêm
   method này. Trong codebase chỉ 3 implementation đều đã update.
 
-## 9. EF perf — đề xuất thêm index để hỗ trợ filter/join hot path
+## 9. EF perf — đề xuất thêm index để hỗ trợ filter/join hot path ✅ MIGRATION GENERATED (chưa apply)
+
+Đã generate migration `20260429120939_Add_PerfIndexes` trong branch
+`chore/perf-indexes` (2026-04-29). 4 index sau khi verify thực tế trong
+`AppDbContext.OnModelCreating`:
+
+| Index | Bảng | Column(s) | Lý do |
+|---|---|---|---|
+| `IX_OWTM_Active` | OWTM | Active | Predicate chính của approval-template lookup |
+| `IX_WTM2_Sort` | WTM2 | Sort | Filter `Sort == 1` ở Approval.CreateApprovalAsync |
+| `IX_ItemSpec_Industry_Brand_ItemType` | ItemSpec | (IndustryId, BrandId, ItemTypeId) | Composite cho filter 3-cột ở ItemService.cs:1215 |
+| `IX_Promotion_Status_FromDate_ToDate` | Promotion | (PromotionStatus, FromDate, ToDate) | Equality + range cho PromotionService active-promo lookup |
+
+**Đã skip (verify từ OnModelCreating thấy đã có):**
+- `Item.ItemCode` — đã có unique index (line 619)
+- `OWST.Name`, `OWTM.Name`, `Promotion.PromotionCode` — unique indexes có sẵn
+
+**KHÔNG apply migration trong session này** — chỉ generate. Trước khi apply:
+1. Kiểm tra production DB xem các index này đã có chưa (có thể được thêm
+   thủ công ngoài EF). Nếu trùng → migration sẽ fail với "Index already exists".
+2. Đối với bảng tải lớn (`Promotion`, `ItemSpec` có thể >10k rows) cân nhắc
+   chỉnh migration thành raw SQL với `WITH (ONLINE = ON)` trên SQL Server
+   Enterprise để không lock bảng.
+3. Migration chỉ thêm index; rollback `Down()` drop sạch — an toàn.
+
+Lệnh apply:
+```bash
+cd backend
+dotnet ef database update Add_PerfIndexes --project BackEndAPI
+```
 
 Quan sát từ các query đã sửa trong commit này. Dưới đây là các column được
 WHERE/JOIN nhiều lần. Kiểm tra xem có index chưa (qua SSMS hoặc

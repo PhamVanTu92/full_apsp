@@ -497,6 +497,27 @@ namespace BackEndAPI.Data
                 .HasIndex(g => g.Name)
                 .IsUnique();
 
+            // Perf indexes (BACKEND_REVIEW H-6 / FOLLOW_UP #9):
+            //   OWTM.Active is the primary predicate for approval-template lookups
+            //   (Approval.CreateApprovalAsync). Without an index, that scans the
+            //   whole table.
+            modelBuilder.Entity<OWTM>()
+                .HasIndex(o => o.Active)
+                .HasDatabaseName("IX_OWTM_Active");
+
+            //   WTM2.Sort is filtered with Sort == 1 in the same lookup; combined
+            //   with the FK auto-index on FatherId we cover (FatherId, Sort).
+            modelBuilder.Entity<WTM2>()
+                .HasIndex(w => w.Sort)
+                .HasDatabaseName("IX_WTM2_Sort");
+
+            //   ItemSpec is filtered by combinations of IndustryId / BrandId /
+            //   ItemTypeId (ItemService.cs:1215). EF convention gives single-column
+            //   indexes on each FK; this composite supports the AND-filter directly.
+            modelBuilder.Entity<ItemSpec>()
+                .HasIndex(s => new { s.IndustryId, s.BrandId, s.ItemTypeId })
+                .HasDatabaseName("IX_ItemSpec_Industry_Brand_ItemType");
+
             modelBuilder.Entity<Fee>()
                 .HasOne(u => u.appUser)
                 .WithMany()
@@ -839,6 +860,14 @@ namespace BackEndAPI.Data
                 .HasForeignKey(pi => pi.FatherId);
 
             modelBuilder.Entity<Promotion>().HasIndex(g => g.PromotionCode).IsUnique();
+
+            // Perf index for PromotionService.cs:172-173 — filter on
+            // (PromotionStatus == "A" AND FromDate <= now AND ToDate >= now).
+            // Equality column first, then range columns. Cuts active-promo lookup
+            // from a scan to a seek + range read.
+            modelBuilder.Entity<Promotion>()
+                .HasIndex(p => new { p.PromotionStatus, p.FromDate, p.ToDate })
+                .HasDatabaseName("IX_Promotion_Status_FromDate_ToDate");
 
 
             modelBuilder.Entity<PromotionLine>()
