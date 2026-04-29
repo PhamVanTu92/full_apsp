@@ -1,0 +1,11 @@
+# Root-level ignores cho monorepo APSP.
+# Backend / frontend có .gitignore riêng — file này chỉ liệt kê những gì
+# nằm ở cấp root và chưa được phủ bởi sub-folder gitignore.
+
+# Claude Code project-local state (settings cá nhân, transcripts, todos)
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
