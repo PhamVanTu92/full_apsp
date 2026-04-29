@@ -168,7 +168,9 @@ namespace BackEndAPI.Service.Approval
                         items.RUsers.Remove(i);
                     }
 
-                    _context.Database.ExecuteSqlRaw("DELETE FROM m2m_ApprovalOWTM WHERE OWTMId  = {0}", items.Id);
+                    // Use ExecuteSqlInterpolated to ensure value is parameterized via FormattableString,
+                    // not concatenated into the SQL string.
+                    _context.Database.ExecuteSqlInterpolated($"DELETE FROM m2m_ApprovalOWTM WHERE OWTMId = {items.Id}");
                     items.RUsers.AddRange(newRUser);
 
                     _modelUpdater.UpdateModel(item, items, "WTM1", "WTM2", "WTM3", "WTM4", "CRD5", "NA5");
