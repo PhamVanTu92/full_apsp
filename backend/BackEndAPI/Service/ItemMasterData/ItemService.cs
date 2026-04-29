@@ -1212,7 +1212,10 @@ namespace BackEndAPI.Service.ItemMasterData
                 List<ItemSpecHierarchy> listSpec = new List<ItemSpecHierarchy>();
                 List<ItemSpec> itemSpec = new List<ItemSpec>();
                 if(BPId != null)
-                    itemSpec = await _context.ItemSpec.AsNoTracking().Where(e=> (BPId.Contains(e.IndustryId) || BPId.Count() == 0) && (Brands.Count() == 0 || Brands.Contains(e.BrandId)) && (ItemType.Count() == 0 || ItemType.Contains(e.ItemTypeId))).ToListAsync();
+                    // .Any() short-circuits on first match (SQL EXISTS); .Count() == 0 forces a full COUNT.
+                    // For closed-over List<int> parameters EF folds these to constants either way, but
+                    // .Any() is the idiomatic check.
+                    itemSpec = await _context.ItemSpec.AsNoTracking().Where(e=> (BPId.Contains(e.IndustryId) || !BPId.Any()) && (!Brands.Any() || Brands.Contains(e.BrandId)) && (!ItemType.Any() || ItemType.Contains(e.ItemTypeId))).ToListAsync();
                 else
                     itemSpec = await _context.ItemSpec.AsNoTracking().ToListAsync();
                 var brand = itemSpec.DistinctBy(x => new { x.BrandId, x.Brand }).ToList();
@@ -1419,7 +1422,8 @@ namespace BackEndAPI.Service.ItemMasterData
                 if(userId != null)
                     query = query.Where(e => e.IsActive == true);
                 else
-                    if (itemCode.Count() > 0)
+                    // .Any() over .Count() > 0 — short-circuits on first element.
+                    if (itemCode.Any())
 
                         query = query.Where(e => e.IsActive== true && itemCode.Contains(e.ItemCode));
                     else
@@ -1967,7 +1971,8 @@ namespace BackEndAPI.Service.ItemMasterData
                            .GroupBy(x => x.ItemCode).Select(g => new ItemPoints { ItemCode = g.Key, Points = g.Max(x => x.Points) }).ToList();
                     }
                     var ItemCode = points?.Where(e => !string.IsNullOrEmpty(e.ItemCode)).Select(e => e.ItemCode).Distinct().ToArray() ?? Array.Empty<string>();
-                    if (ItemCode.Count() > 0)
+                    // .Any() short-circuits on first element vs .Count() > 0 enumerating fully.
+                    if (ItemCode.Any())
                         query = query.Where(e => e.IsActive == true && ItemCode.Contains(e.ItemCode));
                     else
                         query = query.Where(e => e.IsActive == true && e.ItemCode == "1");
@@ -2023,7 +2028,8 @@ namespace BackEndAPI.Service.ItemMasterData
                            .GroupBy(x => x.ItemCode).Select(g => new ItemPoints { ItemCode = g.Key, Points = g.Max(x => x.Points) }).ToList();
 
                     var ItemCode = points?.Where(e => !string.IsNullOrEmpty(e.ItemCode)).Select(e => e.ItemCode).Distinct().ToArray() ?? Array.Empty<string>();
-                    if (ItemCode.Count() > 0)
+                    // .Any() short-circuits on first element vs .Count() > 0 enumerating fully.
+                    if (ItemCode.Any())
                         query = query.Where(e => e.IsActive == true && ItemCode.Contains(e.ItemCode));
                     else
                         query = query.Where(e => e.IsActive == true);
@@ -2153,7 +2159,8 @@ namespace BackEndAPI.Service.ItemMasterData
                            .GroupBy(x => x.ItemCode).Select(g => new ItemPoints { ItemCode = g.Key, Points = g.Max(x => x.Points) }).ToList();
 
                     var ItemCode = points?.Where(e => !string.IsNullOrEmpty(e.ItemCode)).Select(e => e.ItemCode).Distinct().ToArray() ?? Array.Empty<string>();
-                    if (ItemCode.Count() > 0)
+                    // .Any() short-circuits on first element vs .Count() > 0 enumerating fully.
+                    if (ItemCode.Any())
                         query = query.Where(e => e.IsActive == true && ItemCode.Contains(e.ItemCode));
                     else
                         query = query.Where(e => e.IsActive == true);

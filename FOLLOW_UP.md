@@ -83,7 +83,79 @@ hợp nhồi vào prompt async fix lẻ.
 3 sprint con (controllers, top services, EF leaf). Hoặc bắt đầu enforce qua
 analyzer rule `CA2016` (Forward CancellationToken) cho code mới.
 
-## 7. Async — sync EF call (`FirstOrDefault`, `ToList`...) trong method async
+## 8. EF perf — H-5 ApprovalWorkFlow N+1 (cần đổi interface)
+
+Ghi nhận trong branch `refactor/ef-query-optimization` (2026-04-29).
+
+`Service/Approval_V2/ApprovalWorkFlow/Service/ApprovalWorkFlowService.cs:46-55`
+chạy N+1: sau khi `ToListAsync()` lấy danh sách workflow, foreach gọi
+`engine.GetEntityAsync(docId)` cho từng row → 1 query/row.
+
+`IApprovalWorkFlowEngine` (line 8 trong `Engine/IApprovalWorkFlowEngine.cs`)
+hiện chỉ có `Task<object?> GetEntityAsync(int docId)`. Để batch cần thêm:
+```csharp
+Task<Dictionary<int, object>> GetEntitiesAsync(IEnumerable<int> docIds);
+```
+
+Phải implement ở 3 engine: `PurchaseOrderWorkFlow`, `RequestPickUpItemsWorkFlow`,
+`PurchaseReturnWorkFlow`. **Là public API change** (interface mở rộng) → cần
+user duyệt trước khi làm.
+
+Workaround tạm thời cho hot path: cache result theo `DocId` trong scope của
+request (e.g., `IMemoryCache` với key short TTL). Nhưng workaround không giảm
+N+1, chỉ đỡ khi cùng pagination được yêu cầu lặp.
+
+## 9. EF perf — đề xuất thêm index để hỗ trợ filter/join hot path
+
+Quan sát từ các query đã sửa trong commit này. Dưới đây là các column được
+WHERE/JOIN nhiều lần. Kiểm tra xem có index chưa (qua SSMS hoặc
+`AppDbContext.OnModelCreating`); nếu chưa, đề xuất EF migration:
+
+| Bảng | Column | Lý do |
+|---|---|---|
+| `Item` | `ItemCode` | DocumentService load Item by `ItemCode IN (...)` rất nhiều chỗ. Nếu chưa unique index hoặc nonclustered index trên cột này → seek thành scan. |
+| `WTM2` | `Sort` + `OWTM_Id` (FK) | Approval.cs:106-108 filter `Sort == 1 && OWTM.Active`. FK trên OWTM_Id thường có index, nhưng composite (OWTM_Id, Sort) sẽ khớp predicate tốt hơn. |
+| `OWTM` | `Active` | Filter chính của approval lookup. Nếu phần lớn rows Active=true thì index ít hữu ích, ngược lại rất hữu ích. |
+| `RUsers` (m2m) | `(OWTM_Id, AppUser_Id)` | Pivot table — nếu chưa có composite index thì `RUsers.Any(p => p.Id == X)` sẽ scan. Thường EF tự tạo PK composite ở pivot, kiểm tra lại. |
+| `ItemSpec` | `IndustryId`, `BrandId`, `ItemTypeId` | ItemService.cs:1215 filter trên 3 cột này. Composite index theo selectivity (IndustryId thường nhất) sẽ tăng hiệu quả. |
+| `Promotion` | `(FromDate, ToDate, PromotionStatus)` | PromotionService.cs:172-173 filter date-range + status, gọi rất nhiều. |
+
+**KHÔNG tự generate migration trong commit này** vì:
+- Cần verify schema hiện tại trước (có thể đã có index do EF convention).
+- Latest migration `Add_RefreshToken` (Apr 2026); thêm migration mới phải đồng
+  bộ với DBA về plan apply.
+- Một số index đề xuất đụng bảng tải lớn (`Item`, `Promotion`) — cần
+  `WITH ONLINE = ON` hoặc maintenance window.
+
+Đề xuất user:
+1. Confirm bảng nào cần index → tôi generate migration `dotnet ef migrations
+   add Add_PerfIndexes_*` ở branch riêng `chore/perf-indexes`.
+2. Hoặc chạy thủ công `CREATE NONCLUSTERED INDEX ... WITH (ONLINE = ON)` qua
+   SSMS rồi scaffold migration sau.
+
+## 10. EF perf — benchmark trước khi merge cho 2 hotpath
+
+Hai chỗ đáng benchmark trước khi merge `refactor/ef-query-optimization`:
+
+1. **`DocumentService.SyncToSapAsync` (line ~528, ~8168)** — benchmark trước/sau:
+   - **Setup:** doc với ~5 promotion line, Item table có ~50k rows.
+   - **Trước:** `_context.Item.ToList()` → load 50k rows.
+   - **Sau:** filter `WHERE ItemCode IN (5 codes)` → load ~5 rows.
+   - **Đo:** thời gian gọi `SyncToSap`, peak memory, # SQL query.
+   - **Kỳ vọng:** thời gian giảm 80%+, memory giảm tương ứng.
+
+2. **`Approval.CreateApprovalAsync` (line ~101)** — benchmark trước/sau:
+   - **Setup:** WTM2 có ~1000 rows active, RUsers per OWTM ~10 user.
+   - **Trước:** load all 1000 WTM2 + lazy nav → in-memory filter.
+   - **Sau:** SQL `WHERE EXISTS (SELECT 1 FROM RUsers WHERE Id = @actorId)`.
+   - **Đo:** thời gian, # rows transferred.
+   - **Kỳ vọng:** từ 1000 rows → ~1 row được trả về, 50%+ thời gian giảm.
+
+Test framework: `BenchmarkDotNet` hoặc đơn giản hơn — `Stopwatch` + `dotnet test`
+với fixture chứa SQL Server seeded data. Nếu không tiện cài Bench, có thể chạy
+SSMS với `SET STATISTICS TIME, IO ON` cho 2 query thô và so sánh.
+
+## 11. Async — sync EF call (`FirstOrDefault`, `ToList`...) trong method async (was #7)
 
 Khi sửa C-4 ở `AccountService.AuthenticateUser` phát hiện:
 ```csharp

@@ -525,7 +525,19 @@ namespace BackEndAPI.Service.Document
                         U_CMND = U_CMND,
                         U_Description_vn = U_Description_vn
                     };
-                    var itemKM = _context.Item.ToList();
+                    // Was: 'var itemKM = _context.Item.ToList();' here, loading the entire Item table
+                    // (potentially 100k+ rows) just to look up Price by ItemCode for the promo rows used
+                    // by the line1/line2/line3/line4 buckets below. Now narrow to only the ItemCodes
+                    // referenced by promotions on this doc — typically a handful. AsNoTracking because
+                    // we only read .Price.
+                    var promoCodes = doc.Promotion
+                        .Where(p => !p.ItemCode.IsNullOrEmpty() && (p.QuantityAdd ?? 0) > 0)
+                        .Select(p => p.ItemCode)
+                        .Distinct()
+                        .ToList();
+                    var itemKM = await _context.Item.AsNoTracking()
+                        .Where(i => promoCodes.Contains(i.ItemCode))
+                        .ToListAsync();
                     if (line1.Count > 0)
                     {
                         var ids1 = line1.Select(x => x.LineId).ToList();
@@ -8165,7 +8177,19 @@ namespace BackEndAPI.Service.Document
                         U_CMND = U_CMND,
                         U_Description_vn = U_Description_vn
                     };
-                    var itemKM = _context.Item.ToList();
+                    // Was: 'var itemKM = _context.Item.ToList();' here, loading the entire Item table
+                    // (potentially 100k+ rows) just to look up Price by ItemCode for the promo rows used
+                    // by the line1/line2/line3/line4 buckets below. Now narrow to only the ItemCodes
+                    // referenced by promotions on this doc — typically a handful. AsNoTracking because
+                    // we only read .Price.
+                    var promoCodes = doc.Promotion
+                        .Where(p => !p.ItemCode.IsNullOrEmpty() && (p.QuantityAdd ?? 0) > 0)
+                        .Select(p => p.ItemCode)
+                        .Distinct()
+                        .ToList();
+                    var itemKM = await _context.Item.AsNoTracking()
+                        .Where(i => promoCodes.Contains(i.ItemCode))
+                        .ToListAsync();
                     if (line1.Count > 0)
                     {
                         var ids1 = line1.Select(x => x.LineId).ToList();
